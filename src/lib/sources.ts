@@ -70,6 +70,11 @@ export const SOURCES: Source[] = [
   { id: "astr", name: "ASTR the Label", domain: "astrthelabel.com", vibe: "feminine event and vacation dresses, polished date-night; mid-range" },
   { id: "sir", name: "SIR.", domain: "sirthelabel.com", vibe: "sculptural Australian minimalism, silk and linen Euro-summer; premium" },
   { id: "faithfull", name: "Faithfull the Brand", domain: "faithfullthebrand.com", vibe: "Mediterranean-holiday linen dresses and sets; contemporary" },
+  // ——— workwear / office ———
+  { id: "mmlafleur", name: "M.M.LaFleur", domain: "mmlafleur.com", vibe: "polished women's workwear, machine-washable suiting and sheath dresses; premium" },
+  { id: "argent", name: "Argent", domain: "argentwork.com", vibe: "power suiting for women, bold blazers and tailored trousers; premium" },
+  { id: "ministryofsupply", name: "Ministry of Supply", domain: "ministryofsupply.com", vibe: "performance-fabric office wear, wrinkle-free tailoring; men + women; mid-premium" },
+  { id: "priceless", name: "Shop Priceless", domain: "shoppriceless.com", vibe: "budget-friendly trendy boutique, office-casual sets; budget" },
 ];
 
 export const sourceById = (id: string) => SOURCES.find((s) => s.id === id);
