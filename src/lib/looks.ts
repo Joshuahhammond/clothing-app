@@ -37,6 +37,8 @@ export type Slot = {
   height: number;
   z: number;
   rotate: number;
+  /** anchor within the slot: tops hang to their hem, bottoms hang from the waist */
+  align?: "top" | "bottom";
 };
 
 const take = (pools: Map<string, LookItem[]>, key: string, n: number): LookItem[] =>
@@ -130,12 +132,13 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
     put(bottoms[0], { left: 6, top: 3, width: 42, height: 78, z: 2, rotate: 0 });
     put(bottoms[1], { left: 54, top: 5, width: 42, height: 76, z: 2, rotate: 0 });
   } else {
-    // The dressed column: top overlaps the trouser waist
-    put(heads[0], { left: 15, top: 1, width: 46, height: 40, z: 4, rotate: 0 });
-    put(heads[1], { left: 58, top: 0, width: 40, height: 34, z: 3, rotate: 0 });
-    put(heads[2], { left: -3, top: 12, width: 32, height: 30, z: 2, rotate: 0 });
-    put(bottoms[0], { left: 19, top: 32, width: 44, height: 52, z: 2, rotate: 0 });
-    put(bottoms[1], { left: 62, top: 36, width: 36, height: 46, z: 2, rotate: 0 });
+    // The dressed column: the top's hem meets the trouser's waistband on a
+    // shared center axis, with a slight dressed overlap
+    put(heads[0], { left: 16, top: 2, width: 44, height: 36, z: 4, rotate: 0, align: "bottom" });
+    put(heads[1], { left: 60, top: 1, width: 38, height: 32, z: 3, rotate: 0, align: "bottom" });
+    put(heads[2], { left: -2, top: 12, width: 32, height: 30, z: 2, rotate: 0, align: "bottom" });
+    put(bottoms[0], { left: 18, top: 35, width: 40, height: 50, z: 2, rotate: 0, align: "top" });
+    put(bottoms[1], { left: 62, top: 36, width: 34, height: 46, z: 2, rotate: 0, align: "top" });
   }
 
   put(shoes[0], { left: 22, top: 84, width: 28, height: 14, z: 5, rotate: 0 });

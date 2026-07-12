@@ -60,9 +60,13 @@ export async function processProductImage(
         // Trim the rectangle tight to its content so a white product photo
         // blends into the canvas like a cutout instead of reading as a card
         upload = await sharp(sourceBuf).trim({ threshold: 25 }).png().toBuffer();
+      } else {
+        // Trim transparent margins so the PNG is tight to the garment —
+        // slot alignment then behaves predictably regardless of the photo
+        upload = await sharp(upload).trim({ threshold: 10 }).png().toBuffer();
       }
     } catch {
-      // stats failed — keep the cutout as-is
+      // stats/trim failed — keep the cutout as-is
     }
 
     const path = `${ownerId}/${crypto.randomUUID()}.png`;

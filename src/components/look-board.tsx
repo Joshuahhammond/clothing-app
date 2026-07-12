@@ -47,7 +47,13 @@ export function LookBoard({ items, label }: { items: LookItem[]; label?: string 
               <img
                 src={item.image_url}
                 alt={item.name}
-                className="h-full w-full object-contain mix-blend-multiply"
+                className={`h-full w-full object-contain mix-blend-multiply ${
+                  slot.align === "bottom"
+                    ? "object-bottom"
+                    : slot.align === "top"
+                      ? "object-top"
+                      : ""
+                }`}
                 loading="lazy"
               />
             </div>
