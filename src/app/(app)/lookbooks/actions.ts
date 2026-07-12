@@ -365,6 +365,15 @@ async function runLookbookGeneration({
       }))
     );
 
+    // 5. AI art director: render each board, critique against reference
+    // rules, persist the nudged positions. Never blocks shipping the book.
+    try {
+      const { refineBoards } = await import("@/lib/critique");
+      await refineBoards(db, lookbookId);
+    } catch (err) {
+      console.error(`[lookbook ${lookbookId}] critique pass skipped:`, err);
+    }
+
     await db
       .from("lookbooks")
       .update({ title: spec.title, description: spec.description, status: "ready" })

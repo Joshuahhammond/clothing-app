@@ -48,6 +48,7 @@ export default async function SharedLookbookPage({ params }: Props) {
       note: i.note,
       look_no: i.look_no,
       kind: i.kind,
+      slot: i.slot ?? null,
       aspect: isCutout(i.image_url) ? await probeAspect(i.image_url) : null,
     }))
   );

@@ -6,7 +6,10 @@ import { formatPrice } from "@/lib/color";
  * and blended onto a single white canvas, Hue & Stripe style.
  */
 export function LookBoard({ items, label }: { items: LookItem[]; label?: string }) {
-  const placed = composeLook(items);
+  // AI-critiqued positions (persisted at generation) beat the live layout
+  const placed = composeLook(items).map((p) =>
+    p.item.slot ? { ...p, slot: p.item.slot } : p
+  );
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-bone">

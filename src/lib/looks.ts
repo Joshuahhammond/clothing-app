@@ -19,6 +19,8 @@ export type LookItem = {
   aspect?: number | null;
   /** designed role from generation ("sunglasses", "belt"...) — beats title guessing */
   kind?: string;
+  /** AI-critiqued board position override (persisted at generation time) */
+  slot?: Slot | null;
 };
 
 /** Group by explicit outfit numbers when present, else fall back to recipe */

@@ -82,6 +82,7 @@ export type SharedLookbook = {
     note: string;
     position: number;
     look_no: number;
+    slot?: import("./looks").Slot | null;
     name: string;
     brand: string;
     category: string;
