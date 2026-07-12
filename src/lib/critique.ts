@@ -3,7 +3,7 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { composeLook, isCutout, type LookItem, type Slot } from "@/lib/looks";
+import { autoscale, composeLook, isCutout, type LookItem, type Slot } from "@/lib/looks";
 import { probeAspect } from "@/lib/dims";
 
 const client = new Anthropic();
@@ -146,7 +146,7 @@ export async function refineBoards(db: SupabaseClient, lookbookId: string): Prom
                 },
                 {
                   type: "text" as const,
-                  text: `This is a stylist's outfit collage. Items by number:\n${legend}\n\nJudge it against professional reference rules: (1) nothing clipped by or touching the canvas edge — keep a clean ~4% margin frame; (2) garments read at uniform scale, in dressed columns with each bottom's waistband a small even gap under its top's hem; (3) accessories follow dressing order — sunglasses near the top, necklace at a neckline, belt at a waist junction in open space, shoes clustered at the foot; (4) even gutters, no accidental collisions (a deliberate tuck like a shoe overlapping a trouser hem is good; an accessory half-covering a garment is not); (5) no large empty voids inside the composition. Return nudges only for items that need them (dx/dy percent, scale). If it already reads professional, set looks_professional=true with no adjustments.`,
+                  text: `This is a stylist's outfit collage. Items by number:\n${legend}\n\nJudge it against professional reference rules: (1) nothing clipped by or touching the canvas edge — keep a clean ~4% margin frame; (2) garments read at uniform scale, in dressed columns with each bottom's waistband a small even gap under its top's hem; (3) accessories follow dressing order — sunglasses near the top, necklace at a neckline, belt at a waist junction in open space, shoes clustered at the foot; (4) even gutters, no accidental collisions (a deliberate tuck like a shoe overlapping a trouser hem or shirts layered in a cascade is good; an accessory or shoe sitting ON TOP of a garment's body is not); (5) the composition must FILL the canvas — spread items so no region larger than ~20% of the board is empty; never crowd everything into one corner. Return nudges only for items that need them (dx/dy percent, scale). If it already reads professional, set looks_professional=true with no adjustments.`,
                 },
               ],
             },
@@ -167,6 +167,9 @@ export async function refineBoards(db: SupabaseClient, lookbookId: string): Prom
           s.left = Math.min(97 - s.width, Math.max(3, cx - s.width / 2));
           s.top = Math.min(98 - s.height, Math.max(1.5, cy - s.height / 2));
         }
+        // Re-normalize after nudges: fill the canvas and re-clamp margins,
+        // so a round of moves can never persist a crowded corner + void
+        autoscale(placed);
         console.log(
           `[lookbook ${lookbookId}] critique look ${no} round ${round + 1}: ${out.adjustments.length} nudges`
         );

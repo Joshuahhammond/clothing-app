@@ -517,6 +517,21 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
         : topRect
           ? topRect.top + topRect.height * (botRect === topRect ? 0.42 : 1)
           : 55;
+    // The primary column's true floor: bottom of the trousers, or of the
+    // whole cascaded shirt stack when the column has no bottoms
+    const primaryStackBottom = topRect
+      ? Math.max(
+          topRect.top + topRect.height,
+          ...heads
+            .map((h) => placed.find((p) => p.item === h)?.slot)
+            .filter((r): r is Slot => Boolean(r))
+            .filter(
+              (r) =>
+                r.left < topRect.left + topRect.width && r.left + r.width > topRect.left
+            )
+            .map((r) => r.top + r.height)
+        )
+      : 40;
     const hemY = botRect ? botRect.top + botRect.height : 78;
 
     // The accessory SPINE: references run accessories down the widest
@@ -600,7 +615,7 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
       });
     put(shoes[0], {
       left: axis - 13,
-      top: bottomUnderPrimary ? hemY - 3 : (topRect ? topRect.top + topRect.height + 3 : hemY - 3),
+      top: bottomUnderPrimary ? hemY - 3 : primaryStackBottom + 3,
       width: 26, height: 15, z: 7, rotate: 0, align: "top",
     });
     put(shoes[1], { left: spineLowX - 12, top: Math.min(hemY + 1, 84), width: 24, height: 14, z: 7, rotate: 0, align: "top" });
@@ -610,12 +625,16 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
       left: axis - 22, top: Math.min(hemY + 12, 80),
       width: 26, height: 15, z: 7, rotate: 0, align: "top",
     });
-    // Bag at the hip on the column's freer side
-    const bagOnLeft = axis > 50;
+    // Bag at hip height on whichever side of the bottoms has real room —
+    // never inside a garment
+    const anchorRect = botRect ?? topRect;
+    const freeLeft = anchorRect ? anchorRect.left : 50;
+    const freeRight = anchorRect ? 100 - (anchorRect.left + anchorRect.width) : 50;
+    const bagOnLeft = freeLeft >= freeRight;
     put(bags[0], {
       left: bagOnLeft
-        ? Math.max(1, (botRect?.left ?? axis - 15) - 16)
-        : Math.min(81, (botRect ? botRect.left + botRect.width : axis + 12) - 2),
+        ? Math.max(2, (anchorRect?.left ?? 50) - 19)
+        : Math.min(80, (anchorRect ? anchorRect.left + anchorRect.width : 62) + 1),
       top: junctionY + 4, width: 18, height: 18, z: 7, rotate: 0,
     });
     put(bags[1], {
@@ -672,7 +691,8 @@ function truthBoxes(placed: Array<{ item: LookItem; slot: Slot }>): void {
 
 // References are dense edge-to-edge: a sparse board scales its whole
 // cluster up around the canvas center instead of floating tiny pieces.
-function autoscale(
+// Exported so the AI critique loop can re-normalize after applying nudges.
+export function autoscale(
   placed: Array<{ item: LookItem; slot: Slot }>
 ): Array<{ item: LookItem; slot: Slot }> {
   if (placed.length === 0) return placed;
