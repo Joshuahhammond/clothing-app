@@ -99,6 +99,76 @@ export async function extractProductFromPage(
   return response.parsed_output;
 }
 
+const DiscoveryPlanSchema = z.object({
+  store_ids: z
+    .array(z.string())
+    .describe("IDs of the 4-6 stores whose vibe and price tier best match the brief"),
+  keywords: z
+    .array(z.string())
+    .describe(
+      "6-10 lowercase search words/short phrases likely to appear in matching product titles, types, or tags (e.g. 'linen', 'wide leg', 'blazer', 'ivory')"
+    ),
+});
+
+export type DiscoveryPlan = z.infer<typeof DiscoveryPlanSchema>;
+
+export async function planDiscovery(
+  brief: string,
+  storeCatalog: string
+): Promise<DiscoveryPlan> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `A stylist wants to source real products for this brief: "${brief}"\n\nAvailable stores:\n${storeCatalog}\n\nPick the stores to search and the keywords to search with.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(DiscoveryPlanSchema) },
+  });
+  if (!response.parsed_output) throw new Error("Could not plan the search");
+  return response.parsed_output;
+}
+
+const DiscoveryPicksSchema = z.object({
+  picks: z
+    .array(
+      z.object({
+        index: z.number().describe("The candidate's number from the list"),
+        color_hex: z
+          .string()
+          .describe("Dominant color as 6-digit hex, inferred from the title/tags"),
+        category: z.enum(CATEGORIES),
+        why: z.string().describe("Five words or fewer on why it fits the brief"),
+      })
+    )
+    .describe("The best matches for the brief, strongest first. Up to 20."),
+});
+
+export type DiscoveryPicks = z.infer<typeof DiscoveryPicksSchema>;
+
+export async function rankDiscovered(
+  brief: string,
+  candidateLines: string
+): Promise<DiscoveryPicks> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Brief: "${brief}"\n\nCandidate products (real, in stock):\n${candidateLines}\n\nPick up to 20 that genuinely fit the brief — cohesive as a set, varied across categories, no near-duplicates.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(DiscoveryPicksSchema) },
+  });
+  if (!response.parsed_output) throw new Error("Could not rank products");
+  return response.parsed_output;
+}
+
 export type GeneratedItem = z.infer<typeof GeneratedItemSchema>;
 export type GeneratedWardrobe = z.infer<typeof GeneratedWardrobeSchema>;
 export type GeneratedLookbook = z.infer<typeof GeneratedLookbookSchema>;
