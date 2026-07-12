@@ -62,7 +62,9 @@ export async function importItemFromUrl(formData: FormData) {
   if (ogImage) {
     const { flat } = await pickBestImage([ogImage]);
     const crop = flat ? null : await locateGarment(ogImage, product.name);
-    cutout = await processProductImage(ogImage, user.id, supabase, crop, flat);
+    if (flat || crop) {
+      cutout = await processProductImage(ogImage, user.id, supabase, crop, flat);
+    } // model shot with no clean crop keeps the original photo (off-canvas)
   }
 
   const { h, s, l } = hexToHsl(product.color_hex);

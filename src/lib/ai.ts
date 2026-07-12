@@ -417,6 +417,11 @@ export async function verifyPaletteMatches(
 }
 
 const GarmentBoxSchema = z.object({
+  found: z
+    .boolean()
+    .describe(
+      "true only if a clean product-only crop exists. false when the crop would inevitably contain the model's face or mostly bare skin (jewelry/watches worn on hands, products smaller than ~10% of frame)"
+    ),
   left: z.number().describe("Left edge of the box, percent of image width (0-100)"),
   top: z.number().describe("Top edge, percent of image height (0-100)"),
   width: z.number().describe("Box width, percent of image width"),
@@ -444,7 +449,7 @@ export async function locateGarment(
             { type: "image" as const, source: { type: "url" as const, url: visionThumb(imageUrl) } },
             {
               type: "text" as const,
-              text: `Find the "${productName}" in this photo. Return a tight bounding box around ONLY that product as percentages of the image (0-100). The box must NEVER include the model's face or head — start it at the shoulders/neckline (unless the product is headwear). Exclude body parts that aren't covered by the product. A little margin (2-3%) around the product is good.`,
+              text: `Find the "${productName}" in this photo. Return a tight bounding box around ONLY that product as percentages of the image (0-100). The box must NEVER include the model's face or head — start it at the shoulders/neckline (unless the product is headwear). Exclude body parts that aren't covered by the product. A little margin (2-3%) around the product is good. Set found=false instead of a box when a clean crop is impossible: the face would unavoidably be inside it, the product is jewelry/a watch worn on a hand or wrist (the crop would be mostly bare skin), or the product covers less than ~10% of the frame.`,
             },
           ],
         },
@@ -452,7 +457,7 @@ export async function locateGarment(
       output_config: { format: zodOutputFormat(GarmentBoxSchema) },
     });
     const box = response.parsed_output;
-    if (!box || box.width < 10 || box.height < 10) return null;
+    if (!box || !box.found || box.width < 10 || box.height < 10) return null;
     // Near-full-frame boxes on editorial shots tend to sneak the face in —
     // nudge the top down to roughly chin height
     if (box.top < 8 && box.height > 72) {

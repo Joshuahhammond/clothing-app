@@ -310,6 +310,12 @@ async function runLookbookGeneration({
           const best = await pickBestImage(imgs);
           const chosenUrl = imgs[best.index] ?? product.image;
           const crop = best.flat ? null : await locateGarment(chosenUrl, product.title);
+          if (!best.flat && !crop) {
+            // Model shot with no clean garment box → bench to the strip.
+            // A person silhouette on the canvas is worse than a gap.
+            console.log(`[lookbook ${lookbookId}] benched (no clean crop): ${product.title}`);
+            return { pick, imageUrl: product.image };
+          }
           const imageUrl = await processProductImage(chosenUrl, userId, db, crop, best.flat);
           return { pick, imageUrl };
         })
