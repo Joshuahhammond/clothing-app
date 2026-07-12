@@ -75,6 +75,22 @@ export const SOURCES: Source[] = [
   { id: "argent", name: "Argent", domain: "argentwork.com", vibe: "power suiting for women, bold blazers and tailored trousers; premium" },
   { id: "ministryofsupply", name: "Ministry of Supply", domain: "ministryofsupply.com", vibe: "performance-fabric office wear, wrinkle-free tailoring; men + women; mid-premium" },
   { id: "priceless", name: "Shop Priceless", domain: "shoppriceless.com", vibe: "budget-friendly trendy boutique, office-casual sets; budget" },
+  // ——— streetwear / casual street style ———
+  { id: "edikted", name: "Edikted", domain: "edikted.com", vibe: "Gen-Z street style, baggy jeans, cargos, crop tops; budget-mid" },
+  { id: "motelrocks", name: "Motel Rocks", domain: "motelrocks.com", vibe: "Y2K and indie-sleaze going-out street style; mid-range" },
+  { id: "raggedpriest", name: "The Ragged Priest", domain: "theraggedpriest.com", vibe: "London grunge streetwear, statement denim; mid-range" },
+  { id: "mingalondon", name: "Minga London", domain: "mingalondon.com", vibe: "playful UK streetwear, graphic knits and baggy fits; mid-range" },
+  { id: "dailypaper", name: "Daily Paper", domain: "dailypaperclothing.com", vibe: "Amsterdam streetwear, elevated graphics; men + women; mid-premium" },
+  { id: "stussy", name: "Stüssy", domain: "stussy.com", vibe: "iconic skate-surf streetwear, jerseys and workwear jackets; men + women" },
+  { id: "obey", name: "Obey", domain: "obeyclothing.com", vibe: "graphic street and workwear heritage; men + women; mid-range" },
+  { id: "brandymelville", name: "Brandy Melville", domain: "us.brandymelville.com", vibe: "effortless casual basics, tanks and slouchy knits; budget" },
+  { id: "sistersandseekers", name: "Sisters & Seekers", domain: "sistersandseekers.com", vibe: "UK oversized streetwear sets, neutral tones; mid-range" },
+  { id: "adanola", name: "Adanola", domain: "adanola.com", vibe: "minimal athleisure-street uniform, hoodies and leggings; mid-range" },
+  { id: "kith", name: "Kith", domain: "kith.com", vibe: "NYC luxury streetwear, elevated fleece and sneakers-adjacent; men + women; premium" },
+  { id: "aelfriceden", name: "Aelfric Eden", domain: "aelfriceden.com", vibe: "graphic vintage-wash streetwear, unisex baggy fits; budget-mid" },
+  { id: "peppermayo", name: "Peppermayo", domain: "peppermayo.com", vibe: "Aussie it-girl street and going-out; mid-range" },
+  { id: "whitefox", name: "White Fox", domain: "whitefoxboutique.com", vibe: "oversized hoodie sets and street-casual; mid-range" },
+  { id: "lioness", name: "Lioness", domain: "lionessfashion.com", vibe: "edgy tailored street style, corp-core minis; affordable-mid" },
 ];
 
 export const sourceById = (id: string) => SOURCES.find((s) => s.id === id);
