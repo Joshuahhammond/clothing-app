@@ -76,114 +76,82 @@ export function groupIntoLooks(items: LookItem[]): LookItem[][] {
   return looks;
 }
 
-// ——— slot tables (percent coords on a 4:5 canvas) ———
-
-// Garment row across the top, sized by how many share it
-const HEAD_SLOTS: Record<number, Slot[]> = {
-  1: [{ left: 6, top: 0, width: 52, height: 48, z: 3, rotate: 0 }],
-  2: [
-    { left: -2, top: 0, width: 48, height: 46, z: 3, rotate: 0 },
-    { left: 40, top: 2, width: 46, height: 44, z: 2, rotate: 0 },
-  ],
-  // Three garments cascade down the left edge with heavy overlap,
-  // leaving the center spine for accessories and the right for trousers
-  3: [
-    { left: -2, top: 0, width: 44, height: 40, z: 2, rotate: 0 },
-    { left: 1, top: 24, width: 42, height: 40, z: 3, rotate: 0 },
-    { left: -1, top: 48, width: 40, height: 38, z: 4, rotate: 0 },
-  ],
-};
-
-const BOTTOM_SLOTS: Record<number, Slot[]> = {
-  1: [{ left: 62, top: 36, width: 38, height: 62, z: 2, rotate: 0 }],
-  2: [
-    { left: -2, top: 40, width: 34, height: 58, z: 2, rotate: 0 },
-    { left: 66, top: 38, width: 36, height: 60, z: 2, rotate: 0 },
-  ],
-};
-
-const SHOE_SLOTS: Record<number, Slot[]> = {
-  1: [{ left: 31, top: 74, width: 36, height: 23, z: 5, rotate: 0 }],
-  2: [
-    { left: 30, top: 64, width: 34, height: 19, z: 5, rotate: 0 },
-    { left: 33, top: 82, width: 34, height: 17, z: 6, rotate: 0 },
-  ],
-};
-
-// Accessories fill the gaps: center (watch/bag), resting on the top row
-// (sunglasses), lower-left pocket
-const ACC_SLOTS: Slot[] = [
-  { left: 39, top: 45, width: 21, height: 17, z: 6, rotate: 0 },
-  { left: 71, top: 1, width: 17, height: 11, z: 7, rotate: -4 },
-  { left: 38, top: 64, width: 22, height: 15, z: 6, rotate: -5 },
-];
-
-// With no left-flank trouser the left-middle goes dead — pull accessories in
-const ACC_SLOTS_LEFTFILL: Slot[] = [
-  { left: 8, top: 46, width: 26, height: 22, z: 6, rotate: -4 },
-  { left: 40, top: 48, width: 20, height: 16, z: 6, rotate: 3 },
-  { left: 71, top: 1, width: 17, height: 11, z: 7, rotate: -4 },
-];
-
-// No garments made the canvas (all model shots): bottoms grow to full
-// height and accessories stack the center column
-const BOTTOM_SLOTS_NOHEAD: Record<number, Slot[]> = {
-  1: [{ left: 52, top: 2, width: 46, height: 76, z: 2, rotate: 0 }],
-  2: [
-    { left: 0, top: 2, width: 44, height: 76, z: 2, rotate: 0 },
-    { left: 55, top: 4, width: 44, height: 76, z: 2, rotate: 0 },
-  ],
-};
-
-const ACC_SLOTS_NOHEAD: Slot[] = [
-  { left: 37, top: 8, width: 25, height: 21, z: 6, rotate: -4 },
-  { left: 38, top: 34, width: 23, height: 19, z: 6, rotate: 3 },
-  { left: 39, top: 58, width: 21, height: 17, z: 6, rotate: -5 },
-];
+// Accessory subtypes place differently (bag beside the column, belt at the
+// waist, sunglasses/jewelry sprinkled top-left) — classify by name
+export function accKind(name: string): "bag" | "belt" | "sunglasses" | "jewelry" | "other" {
+  if (/bag|tote|clutch|crossbody|crescent|satchel|hobo/i.test(name)) return "bag";
+  if (/belt/i.test(name)) return "belt";
+  if (/sunglass|eyewear|frames/i.test(name)) return "sunglasses";
+  if (/earring|necklace|ring|bracelet|hoop|pendant|choker|chain|watch|cuff|jewel/i.test(name)) return "jewelry";
+  return "other";
+}
 
 /** Only transparent cutouts belong on the collage canvas */
 export const isCutout = (url: string) => url.includes("/cutouts/");
 
+/**
+ * Column-cluster composition (Stefana Silber style): the outfit reads as a
+ * dressed column — top overlapping the trousers below it, shoes at the foot,
+ * bag beside the column, small accessories sprinkled around the edges.
+ */
 export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Slot }> {
   const withImage = items.filter((i) => i.image_url && isCutout(i.image_url));
 
+  const dress = withImage.find((i) => i.category === "dresses");
   const heads = withImage
-    .filter((i) => ["outerwear", "dresses", "tops"].includes(i.category))
+    .filter((i) => ["outerwear", "tops"].includes(i.category))
     .slice(0, 3);
   const bottoms = withImage.filter((i) => i.category === "bottoms").slice(0, 2);
   const shoes = withImage.filter((i) => i.category === "shoes").slice(0, 2);
-  const noHeads = heads.length === 0;
-  // Left-fill only when the left flank is actually free (no trouser there,
-  // and no three-top cascade occupying it)
-  const accSlots = noHeads
-    ? ACC_SLOTS_NOHEAD
-    : bottoms.length < 2 && heads.length < 3
-      ? ACC_SLOTS_LEFTFILL
-      : ACC_SLOTS;
-  const accs = withImage
-    .filter((i) => !heads.includes(i) && !bottoms.includes(i) && !shoes.includes(i))
-    .slice(0, accSlots.length);
+  const rest = withImage.filter(
+    (i) => i !== dress && !heads.includes(i) && !bottoms.includes(i) && !shoes.includes(i)
+  );
+  const bags = rest.filter((i) => accKind(i.name) === "bag").slice(0, 1);
+  const belts = rest.filter((i) => accKind(i.name) === "belt").slice(0, 1);
+  const sunnies = rest.filter((i) => accKind(i.name) === "sunglasses").slice(0, 1);
+  const jewelry = rest.filter((i) => accKind(i.name) === "jewelry").slice(0, 2);
+  const others = rest
+    .filter((i) => ![...bags, ...belts, ...sunnies, ...jewelry].includes(i))
+    .slice(0, 2);
 
   const placed: Array<{ item: LookItem; slot: Slot }> = [];
+  const put = (item: LookItem | undefined, slot: Slot) => {
+    if (item) placed.push({ item, slot });
+  };
 
-  const headSlots = HEAD_SLOTS[heads.length as 1 | 2 | 3] ?? [];
-  heads.forEach((item, i) => {
-    let slot = headSlots[i];
-    // A dress needs a taller run than a top
-    if (item.category === "dresses") {
-      slot = { ...slot, height: slot.height + 18, z: slot.z - 1 };
-    }
-    placed.push({ item, slot });
-  });
+  if (dress) {
+    // Dress owns the column; tops become satellites
+    put(dress, { left: 30, top: 2, width: 42, height: 76, z: 3, rotate: 0 });
+    put(heads[0], { left: -2, top: 4, width: 36, height: 36, z: 4, rotate: 0 });
+    put(heads[1], { left: 70, top: 2, width: 32, height: 32, z: 2, rotate: 0 });
+    put(bottoms[0], { left: 68, top: 34, width: 34, height: 46, z: 2, rotate: 0 });
+  } else if (heads.length === 0) {
+    // No garment for the column top — bottoms take the full height
+    put(bottoms[0], { left: 6, top: 3, width: 42, height: 78, z: 2, rotate: 0 });
+    put(bottoms[1], { left: 54, top: 5, width: 42, height: 76, z: 2, rotate: 0 });
+  } else {
+    // The dressed column: top overlaps the trouser waist
+    put(heads[0], { left: 15, top: 1, width: 46, height: 40, z: 4, rotate: 0 });
+    put(heads[1], { left: 58, top: 0, width: 40, height: 34, z: 3, rotate: 0 });
+    put(heads[2], { left: -3, top: 12, width: 32, height: 30, z: 2, rotate: 0 });
+    put(bottoms[0], { left: 19, top: 32, width: 44, height: 52, z: 2, rotate: 0 });
+    put(bottoms[1], { left: 62, top: 36, width: 36, height: 46, z: 2, rotate: 0 });
+  }
 
-  const bottomTable = noHeads ? BOTTOM_SLOTS_NOHEAD : BOTTOM_SLOTS;
-  (bottomTable[bottoms.length as 1 | 2] ?? []).forEach((slot, i) =>
-    placed.push({ item: bottoms[i], slot })
-  );
-  (SHOE_SLOTS[shoes.length as 1 | 2] ?? []).forEach((slot, i) =>
-    placed.push({ item: shoes[i], slot })
-  );
-  accs.forEach((item, i) => placed.push({ item, slot: accSlots[i] }));
+  put(shoes[0], { left: 22, top: 84, width: 28, height: 14, z: 5, rotate: 0 });
+  put(shoes[1], { left: 55, top: 85, width: 26, height: 13, z: 6, rotate: 0 });
+
+  // Satellites: bag beside the column (left when the right column is busy)
+  const rightBusy = bottoms.length > 1 || Boolean(dress);
+  put(bags[0], rightBusy
+    ? { left: 0, top: 54, width: 26, height: 24, z: 5, rotate: 0 }
+    : { left: 66, top: 50, width: 28, height: 26, z: 5, rotate: 0 });
+  put(belts[0], { left: 63, top: 30, width: 22, height: 12, z: 6, rotate: -8 });
+  put(sunnies[0], { left: 4, top: 1, width: 16, height: 9, z: 6, rotate: -5 });
+  put(jewelry[0], { left: 2, top: 13, width: 13, height: 12, z: 6, rotate: 0 });
+  put(jewelry[1], { left: 3, top: 28, width: 12, height: 11, z: 6, rotate: 4 });
+  put(others[0], { left: 82, top: 62, width: 18, height: 16, z: 5, rotate: 3 });
+  put(others[1], { left: 2, top: 44, width: 18, height: 15, z: 5, rotate: -4 });
 
   return placed;
 }

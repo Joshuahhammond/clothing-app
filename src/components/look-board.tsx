@@ -7,6 +7,10 @@ import { formatPrice } from "@/lib/color";
  */
 export function LookBoard({ items, label }: { items: LookItem[]; label?: string }) {
   const placed = composeLook(items);
+  // How far down the composition actually reaches (percent of canvas)
+  const deepest = placed.length
+    ? Math.max(...placed.map(({ slot }) => slot.top + slot.height))
+    : 0;
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-bone">
@@ -18,10 +22,10 @@ export function LookBoard({ items, label }: { items: LookItem[]; label?: string 
 
       {placed.length > 0 && (
         <div
-          className={`relative mx-auto w-full max-w-xl ${
+          className={`relative mx-auto w-full max-w-xl bg-[#f4efe6] ${
             placed.length <= 2
               ? "aspect-[3/2]"
-              : placed.length <= 5
+              : deepest <= 88 || placed.length <= 5
                 ? "aspect-square"
                 : "aspect-[4/5]"
           }`}
