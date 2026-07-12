@@ -141,19 +141,22 @@ async function runLookbookGeneration({
     // Accessory/shoe pools must be role-plausible: keyword noise ("gold",
     // "thin") otherwise floods them with garments, and the auto-fill below
     // would ship a blue tee as "earrings".
+    // Product-side patterns need word boundaries: "Cuffed" jeans matched a
+    // bare /cuff/ and got swapped in as a bracelet; "belted" dresses are
+    // not belts.
     const ROLE_GUARDS: Array<[RegExp, RegExp]> = [
-      [/earring|hoop|stud/i, /earring|hoop|stud/i],
-      [/necklace|pendant|choker|lariat/i, /necklace|pendant|choker|lariat|chain/i],
-      [/bracelet|bangle|cuff/i, /bracelet|bangle|cuff/i],
-      [/\brings?\b|signet/i, /\brings?\b|signet/i],
-      [/watch/i, /watch/i],
-      [/jewel/i, /earring|hoop|stud|necklace|pendant|bracelet|bangle|cuff|\bring\b|jewel/i],
-      [/sunglass/i, /sunglass|eyewear|frames/i],
-      [/belt/i, /belt/i],
-      [/scarf|stole/i, /scarf|stole|bandana/i],
-      [/bag|tote|clutch|crossbody|satchel/i, /bag|tote|clutch|crossbody|satchel|hobo|pouch/i],
+      [/earring|hoop|stud/i, /\bearrings?\b|\bhoops?\b|\bstuds?\b/i],
+      [/necklace|pendant|choker|lariat/i, /\bnecklaces?\b|\bpendants?\b|\bchokers?\b|\blariats?\b|\bchains?\b/i],
+      [/bracelet|bangle|cuff/i, /\bbracelets?\b|\bbangles?\b|\bcuffs?\b/i],
+      [/\brings?\b|signet/i, /\brings?\b|\bsignets?\b/i],
+      [/watch/i, /\bwatch(es)?\b/i],
+      [/jewel/i, /\bearrings?\b|\bhoops?\b|\bstuds?\b|\bnecklaces?\b|\bpendants?\b|\bbracelets?\b|\bbangles?\b|\bcuffs?\b|\brings?\b|jewel/i],
+      [/sunglass/i, /sunglass|eyewear|\bframes\b/i],
+      [/belt/i, /\bbelts?\b/i],
+      [/scarf|stole/i, /\bscar(f|ves)\b|\bstoles?\b|bandana/i],
+      [/bag|tote|clutch|crossbody|satchel/i, /\bbags?\b|\btotes?\b|clutch|crossbody|satchel|hobo|pouch/i],
       [/shoe|heel|mule|loafer|\bflats?\b|sandal|boot|slingback|ballerina|pump|sneaker/i,
-        /shoe|heel|mule|loafer|\bflats?\b|sandal|boot|slingback|ballerina|pump|sneaker|slide/i],
+        /\bshoes?\b|\bheels?\b|\bmules?\b|loafer|\bflats?\b|sandal|\bboots?\b|slingback|ballerina|\bpumps?\b|sneaker|\bslides?\b|trainer/i],
     ];
     const productText = (p: (typeof all)[number]) =>
       `${p.title} ${p.productType} ${p.tags.join(" ")}`;
