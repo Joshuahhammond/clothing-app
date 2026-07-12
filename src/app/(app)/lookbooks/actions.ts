@@ -110,13 +110,31 @@ async function runLookbookGeneration({
       .map((p, i) => `${i}. [outfit ${p.outfit + 1} "${p.outfitName}" | ${p.role}] ${p.description}`)
       .join("\n");
 
-    // 2. Source candidates per designed piece
+    // 2. Source candidates per designed piece. The planner picks core
+    // clothing stores; specialty categories (shoes, bags, jewelry, belts,
+    // sunglasses) get their stores injected automatically so accessory
+    // pieces always have candidates.
     const storeCatalog = SOURCES.map((s) => `${s.id}: ${s.name} — ${s.vibe}`).join("\n");
     const plan = await planDiscovery(`${brief}. Pieces to source:\n${pieceSummary}`, storeCatalog);
-    const stores = plan.store_ids
+
+    const ROLE_STORES: Array<[RegExp, string[]]> = [
+      [/shoe|loafer|heel|sneaker|boot|flat|sandal|pump|ballerina|mule/i, ["fredasalvador", "dolcevita", "stevemadden", "alohas", "larroude"]],
+      [/bag|tote|clutch|crossbody|shoulder bag|crescent/i, ["cuyana", "songmont", "jwpei", "stagni"]],
+      [/jewel|earring|necklace|ring|bracelet|hoop|pendant|choker/i, ["missoma", "gorjana", "heavenmayhem"]],
+      [/belt/i, ["fredasalvador", "stagni", "cuyana"]],
+      [/sunglass/i, ["stagni", "kith", "fredasalvador"]],
+    ];
+    const specialtyIds = new Set<string>();
+    for (const piece of flatPieces) {
+      const text = `${piece.role} ${piece.description}`;
+      for (const [re, ids] of ROLE_STORES) {
+        if (re.test(text)) ids.slice(0, 3).forEach((id) => specialtyIds.add(id));
+      }
+    }
+    const storeIds = [...new Set([...plan.store_ids.slice(0, 6), ...specialtyIds])].slice(0, 13);
+    const stores = storeIds
       .map(sourceById)
-      .filter((s): s is NonNullable<typeof s> => Boolean(s))
-      .slice(0, 6);
+      .filter((s): s is NonNullable<typeof s> => Boolean(s));
     const catalogs = await Promise.all(stores.map((s) => fetchStoreProducts(s)));
     const all = catalogs.flat();
 

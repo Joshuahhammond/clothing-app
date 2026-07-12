@@ -19,7 +19,11 @@ export function LookBoard({ items, label }: { items: LookItem[]; label?: string 
       {placed.length > 0 && (
         <div
           className={`relative mx-auto w-full max-w-xl ${
-            placed.length <= 5 ? "aspect-square" : "aspect-[4/5]"
+            placed.length <= 2
+              ? "aspect-[3/2]"
+              : placed.length <= 5
+                ? "aspect-square"
+                : "aspect-[4/5]"
           }`}
         >
           {placed.map(({ item, slot }) => (
