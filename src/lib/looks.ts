@@ -506,6 +506,29 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
     }
 
     const jewelText = (j: LookItem) => `${j.kind ?? ""} ${j.name}`;
+    // At waist/foot level the open lane is defined by the BOTTOMS, not the
+    // tops — the belt and spine shoes must sit in that gap or they clip
+    // trouser corners
+    const botReps = bottoms
+      .map((b) => rectOf(b))
+      .filter((r): r is Slot => Boolean(r))
+      .sort((a, b) => a.left + a.width / 2 - (b.left + b.width / 2));
+    let spineLowX = spineX;
+    if (botReps.length >= 2) {
+      let bestGap = -Infinity;
+      for (let i = 0; i < botReps.length - 1; i++) {
+        const gap = botReps[i + 1].left - (botReps[i].left + botReps[i].width);
+        if (gap > bestGap) {
+          bestGap = gap;
+          spineLowX = (botReps[i].left + botReps[i].width + botReps[i + 1].left) / 2;
+        }
+      }
+    } else if (botReps.length === 1) {
+      // Single bottom: the free lane is on its emptier side
+      const r = botReps[0];
+      spineLowX = r.left + r.width / 2 > 50 ? Math.max(10, r.left - 12) : Math.min(90, r.left + r.width + 12);
+    }
+
     const necks = jewelry.filter((j) =>
       /necklace|pendant|choker|chain|lariat/i.test(jewelText(j))
     );
@@ -526,8 +549,8 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
     wrist.slice(0, 2).forEach((w, i) =>
       put(w, { left: spineX - 5, top: junctionY - 22 + i * 11, width: 9, height: 9, z: 8, rotate: 0 })
     );
-    // Waist line: belt on the junction
-    put(belts[0], { left: spineX - 8, top: junctionY - 5, width: 16, height: 10, z: 8, rotate: -6 });
+    // Waist line: belt on the junction, in the bottoms' open lane
+    put(belts[0], { left: spineLowX - 8, top: junctionY - 5, width: 16, height: 10, z: 8, rotate: -6 });
     // Bottom of spine + under the primary hem: shoes in dressing order.
     // A legless primary column (its trousers live under another top) gets
     // its shoes right under the shirt hem, reference-style, not sunk to
@@ -543,7 +566,7 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
       top: bottomUnderPrimary ? hemY - 3 : (topRect ? topRect.top + topRect.height + 3 : hemY - 3),
       width: 26, height: 15, z: 7, rotate: 0, align: "top",
     });
-    put(shoes[1], { left: spineX - 12, top: Math.min(hemY + 1, 84), width: 24, height: 14, z: 7, rotate: 0, align: "top" });
+    put(shoes[1], { left: spineLowX - 12, top: Math.min(hemY + 1, 84), width: 24, height: 14, z: 7, rotate: 0, align: "top" });
     // Third pair joins the footwear cluster below the first, like the
     // reference's center-bottom shoe cell — never stranded in a corner
     put(shoes[2], {
@@ -621,7 +644,7 @@ function autoscale(
   const maxR = Math.max(...placed.map(({ slot }) => slot.left + slot.width));
   const minT = Math.min(...placed.map(({ slot }) => slot.top));
   const maxB = Math.max(...placed.map(({ slot }) => slot.top + slot.height));
-  const s = Math.min(1.35, 95 / Math.max(1, maxR - minL), 95 / Math.max(1, maxB - minT));
+  const s = Math.min(1.35, 92 / Math.max(1, maxR - minL), 92 / Math.max(1, maxB - minT));
   if (s > 1.02) {
     const cx = (minL + maxR) / 2;
     const cy = (minT + maxB) / 2;
@@ -631,6 +654,12 @@ function autoscale(
       slot.width *= s;
       slot.height *= s;
     }
+  }
+  // Margin frame: reference boards keep a clean empty border — nothing
+  // ever touches or clips the canvas edge
+  for (const { slot } of placed) {
+    slot.left = Math.min(97 - slot.width, Math.max(3, slot.left));
+    slot.top = Math.min(98 - slot.height, Math.max(1.5, slot.top));
   }
   return placed;
 }
