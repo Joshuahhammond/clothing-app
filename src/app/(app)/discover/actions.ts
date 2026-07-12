@@ -18,17 +18,19 @@ export async function addDiscoveredItem(formData: FormData) {
   const { h, s, l } = hexToHsl(colorHex);
   const price = parseFloat(String(formData.get("price") ?? ""));
 
-  // Best photo → transparent cutout hosted in our storage
+  // Best photo → cutout ONLY when it's a product-only shot; model shots
+  // keep the original photo and stay off the collage canvas.
   const candidates = formData
     .getAll("images")
     .map(String)
     .filter((u) => u.startsWith("http"));
   let imageUrl = String(formData.get("image_url") ?? "");
-  if (candidates.length > 0) {
-    const best = await pickBestImage(candidates);
-    imageUrl = await processProductImage(candidates[best], user.id, supabase);
-  } else if (imageUrl) {
-    imageUrl = await processProductImage(imageUrl, user.id, supabase);
+  const pool = candidates.length > 0 ? candidates : imageUrl ? [imageUrl] : [];
+  if (pool.length > 0) {
+    const best = await pickBestImage(pool);
+    imageUrl = best.flat
+      ? await processProductImage(pool[best.index], user.id, supabase)
+      : pool[best.index];
   }
 
   await supabase.from("items").insert({

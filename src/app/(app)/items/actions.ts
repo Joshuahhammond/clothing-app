@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
-import { generateItems, extractProductFromPage } from "@/lib/ai";
+import { generateItems, extractProductFromPage, pickBestImage } from "@/lib/ai";
 import { processProductImage } from "@/lib/images";
 
 async function fetchProductPage(url: string): Promise<{ head: string; ogImage: string }> {
@@ -58,7 +58,11 @@ export async function importItemFromUrl(formData: FormData) {
     redirect(`/items?error=${encodeURIComponent(message)}`);
   }
 
-  const cutout = ogImage ? await processProductImage(ogImage, user.id, supabase) : "";
+  let cutout = "";
+  if (ogImage) {
+    const { flat } = await pickBestImage([ogImage]);
+    cutout = flat ? await processProductImage(ogImage, user.id, supabase) : ogImage;
+  }
 
   const { h, s, l } = hexToHsl(product.color_hex);
   await supabase.from("items").insert({

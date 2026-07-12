@@ -9,6 +9,51 @@ const MODEL = "claude-opus-4-8";
 // Resolves ANTHROPIC_API_KEY from the environment
 const client = new Anthropic();
 
+const CuratedLookbookSchema = z.object({
+  title: z.string().describe("Evocative lookbook title, 2-6 words"),
+  description: z
+    .string()
+    .describe("One or two sentences a stylist would write introducing this collection to the client"),
+  picks: z
+    .array(
+      z.object({
+        index: z.number().describe("The candidate's number from the list"),
+        color_hex: z.string().describe("Dominant color as 6-digit hex, inferred from title/tags"),
+        category: z.enum(CATEGORIES),
+        note: z
+          .string()
+          .describe("A warm, specific styling note to the client — how to wear it, what it pairs with in this collection"),
+      })
+    )
+    .describe("The chosen pieces, in outfit order (outerwear/tops first). Cohesive as a wardrobe, varied categories, no near-duplicates."),
+});
+
+export type CuratedLookbook = z.infer<typeof CuratedLookbookSchema>;
+
+/** Curate a client lookbook from REAL candidate products (Discover pipeline). */
+export async function curateLookbook(
+  brief: string,
+  clientName: string | null,
+  candidateLines: string,
+  count: number
+): Promise<CuratedLookbook> {
+  const forClient = clientName ? ` The client's name is ${clientName}.` : "";
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Curate a lookbook of exactly ${count} pieces from these real, in-stock products.${forClient}\n\nBrief: "${brief}"\n\nCandidates:\n${candidateLines}\n\nChoose pieces that work together as outfits (tops + bottoms + shoes + finishing pieces), spread across at least three stores when quality allows, and write the title, intro, and a styling note per piece addressed to the client.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(CuratedLookbookSchema) },
+  });
+  if (!response.parsed_output) throw new Error("Could not curate the lookbook");
+  return response.parsed_output;
+}
+
 const GeneratedItemSchema = z.object({
   name: z.string().describe("Short product name, e.g. 'Cropped wool blazer'"),
   brand: z
@@ -103,15 +148,22 @@ const BestImageSchema = z.object({
   index: z
     .number()
     .describe("Zero-based index of the best image for a flat-lay collage"),
+  flat: z
+    .boolean()
+    .describe(
+      "true only if the chosen image shows the product ALONE — flat-lay, ghost mannequin, or plain product shot with no person wearing it"
+    ),
 });
+
+export type BestImage = { index: number; flat: boolean };
 
 /**
  * Given product photo URLs, pick the one that will look best cut out on a
- * white collage: the garment alone (flat-lay or ghost mannequin), not worn
- * by a model, minimal props. Falls back to 0 on any failure.
+ * white collage, and report whether it's a true product-only shot. Items
+ * without a flat shot stay off the collage canvas.
  */
-export async function pickBestImage(imageUrls: string[]): Promise<number> {
-  if (imageUrls.length <= 1) return 0;
+export async function pickBestImage(imageUrls: string[]): Promise<BestImage> {
+  if (imageUrls.length === 0) return { index: 0, flat: false };
   try {
     const response = await client.messages.parse({
       model: MODEL,
@@ -126,17 +178,21 @@ export async function pickBestImage(imageUrls: string[]): Promise<number> {
             })),
             {
               type: "text" as const,
-              text: "These are photos of one clothing product, in order (index 0 first). Pick the best one for a stylist's flat-lay collage: the product alone — flat-lay or ghost-mannequin — NOT worn by a model, no busy scene. If every photo has a model, pick the plainest, most frontal one.",
+              text: "These are photos of one clothing product, in order (index 0 first). Pick the best one for a stylist's flat-lay collage: the product alone — flat-lay or ghost-mannequin — NOT worn by a model, no busy scene. Set flat=true only if your chosen photo truly shows the product with no person in it. If every photo has a model, pick the plainest, most frontal one and set flat=false.",
             },
           ],
         },
       ],
       output_config: { format: zodOutputFormat(BestImageSchema) },
     });
-    const idx = response.parsed_output?.index ?? 0;
-    return idx >= 0 && idx < imageUrls.length ? idx : 0;
+    const out = response.parsed_output;
+    if (!out) return { index: 0, flat: false };
+    return {
+      index: out.index >= 0 && out.index < imageUrls.length ? out.index : 0,
+      flat: out.flat,
+    };
   } catch {
-    return 0;
+    return { index: 0, flat: false };
   }
 }
 

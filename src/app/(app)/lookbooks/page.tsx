@@ -42,7 +42,7 @@ export default async function LookbooksPage({ searchParams }: Props) {
             id="ai-brief"
             name="brief"
             required
-            placeholder="Coastal-grandmother summer capsule for a beach wedding weekend"
+            placeholder="European old-money summer capsule for Anna — sources real pieces from 99 stores"
             className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
           />
         </div>
@@ -77,7 +77,7 @@ export default async function LookbooksPage({ searchParams }: Props) {
             className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
           />
         </div>
-        <SubmitButton pendingLabel="Styling…">Generate lookbook</SubmitButton>
+        <SubmitButton pendingLabel="Sourcing &amp; styling… (~1 min)">Generate lookbook</SubmitButton>
       </form>
 
       <form
