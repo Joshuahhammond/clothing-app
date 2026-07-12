@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
+import { generateWardrobe } from "@/lib/ai";
 
 export async function addClient(formData: FormData) {
   const supabase = await createClient();
@@ -61,6 +62,48 @@ export async function addWardrobeItem(formData: FormData) {
     lightness: l,
     notes: String(formData.get("notes") ?? "").trim(),
   });
+
+  revalidatePath(`/clients/${clientId}`);
+}
+
+export async function generateWardrobeWithAi(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const clientId = String(formData.get("client_id") ?? "");
+  const persona = String(formData.get("persona") ?? "").trim();
+  if (!clientId || !persona) return;
+  const count = Math.min(Math.max(parseInt(String(formData.get("count") ?? "10"), 10) || 10, 1), 30);
+
+  let generated;
+  try {
+    generated = await generateWardrobe(persona, count);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "AI generation failed";
+    redirect(`/clients/${clientId}?error=${encodeURIComponent(message)}`);
+  }
+
+  await supabase.from("wardrobe_items").insert(
+    generated.map((g) => {
+      const { h, s, l } = hexToHsl(g.color_hex);
+      return {
+        client_id: clientId,
+        stylist_id: user.id,
+        name: g.name,
+        brand: g.brand,
+        category: g.category,
+        color_hex: g.color_hex,
+        hue: h,
+        saturation: s,
+        lightness: l,
+        image_url: "",
+        notes: g.notes,
+      };
+    })
+  );
 
   revalidatePath(`/clients/${clientId}`);
 }

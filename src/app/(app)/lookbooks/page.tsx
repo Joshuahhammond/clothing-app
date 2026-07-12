@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { createLookbook } from "./actions";
+import { createLookbook, generateLookbookWithAi } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 import type { Client, Lookbook } from "@/lib/types";
 
 export const metadata = { title: "Lookbooks" };
 
-export default async function LookbooksPage() {
+type Props = { searchParams: Promise<{ error?: string }> };
+
+export default async function LookbooksPage({ searchParams }: Props) {
+  const { error } = await searchParams;
   const supabase = await createClient();
 
   const [lookbooksRes, clientsRes] = await Promise.all([
@@ -21,6 +25,60 @@ export default async function LookbooksPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold text-ink">Lookbooks</h1>
+
+      {error && (
+        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      <form
+        action={generateLookbookWithAi}
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-taupe/40 bg-bone/40 p-4"
+      >
+        <div className="min-w-64 flex-1">
+          <label htmlFor="ai-brief" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-taupe-dark">
+            ✦ Generate a lookbook with AI
+          </label>
+          <input
+            id="ai-brief"
+            name="brief"
+            required
+            placeholder="Coastal-grandmother summer capsule for a beach wedding weekend"
+            className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+          />
+        </div>
+        <div>
+          <label htmlFor="ai-client" className="mb-1 block text-xs font-medium text-ink/70">
+            Client
+          </label>
+          <select
+            id="ai-client"
+            name="client_id"
+            className="rounded-md border border-bone bg-white px-2 py-2 text-sm focus:border-taupe focus:outline-none"
+          >
+            <option value="">No client</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-20">
+          <label htmlFor="ai-count" className="mb-1 block text-xs font-medium text-ink/70">
+            Pieces
+          </label>
+          <input
+            id="ai-count"
+            name="count"
+            type="number"
+            min={2}
+            max={12}
+            defaultValue={6}
+            className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+          />
+        </div>
+        <SubmitButton pendingLabel="Styling…">Generate lookbook</SubmitButton>
+      </form>
 
       <form
         action={createLookbook}

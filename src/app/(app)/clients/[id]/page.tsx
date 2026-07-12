@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { addWardrobeItem, deleteWardrobeItem, deleteClient } from "../actions";
+import {
+  addWardrobeItem,
+  deleteWardrobeItem,
+  deleteClient,
+  generateWardrobeWithAi,
+} from "../actions";
+import { SubmitButton } from "@/components/submit-button";
 import { CATEGORIES, type Client, type Lookbook, type WardrobeItem } from "@/lib/types";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+};
 
-export default async function ClientDetailPage({ params }: Props) {
+export default async function ClientDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { error } = await searchParams;
   const supabase = await createClient();
 
   const [clientRes, wardrobeRes, lookbooksRes] = await Promise.all([
@@ -52,6 +62,42 @@ export default async function ClientDetailPage({ params }: Props) {
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-ink">Wardrobe</h2>
+        {error && (
+          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
+        <form
+          action={generateWardrobeWithAi}
+          className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-taupe/40 bg-bone/40 p-4"
+        >
+          <input type="hidden" name="client_id" value={client.id} />
+          <div className="min-w-64 flex-1">
+            <label htmlFor="ai-persona" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-taupe-dark">
+              ✦ Generate wardrobe with AI
+            </label>
+            <input
+              id="ai-persona"
+              name="persona"
+              required
+              placeholder={`Describe ${client.name} — "35, marketing exec, quiet luxury, mostly neutrals"`}
+              className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+            />
+          </div>
+          <div className="w-20">
+            <label htmlFor="ai-count" className="mb-1 block text-xs font-medium text-ink/70">
+              Items
+            </label>
+            <input
+              id="ai-count"
+              name="count"
+              type="number"
+              min={1}
+              max={30}
+              defaultValue={10}
+              className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+            />
+          </div>
+          <SubmitButton pendingLabel="Generating…">Generate</SubmitButton>
+        </form>
         <form
           action={addWardrobeItem}
           className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-bone bg-white p-4"

@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { addItem, deleteItem } from "./actions";
+import { addItem, deleteItem, generateItemsWithAi } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 import { COLOR_FAMILIES, inColorFamily, formatPrice } from "@/lib/color";
 import { CATEGORIES, type Item } from "@/lib/types";
 
 export const metadata = { title: "Item library" };
 
-type Props = { searchParams: Promise<{ color?: string }> };
+type Props = { searchParams: Promise<{ color?: string; error?: string }> };
 
 export default async function ItemsPage({ searchParams }: Props) {
-  const { color } = await searchParams;
+  const { color, error } = await searchParams;
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -28,6 +29,43 @@ export default async function ItemsPage({ searchParams }: Props) {
       <p className="mt-1 text-sm text-ink/60">
         Pieces you recommend to clients, indexed by color.
       </p>
+
+      {error && (
+        <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
+
+      <form
+        action={generateItemsWithAi}
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-taupe/40 bg-bone/40 p-4"
+      >
+        <div className="min-w-64 flex-1">
+          <label htmlFor="ai-brief" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-taupe-dark">
+            ✦ Generate with AI
+          </label>
+          <input
+            id="ai-brief"
+            name="brief"
+            required
+            placeholder="Elevated workwear staples in warm neutrals, mid-range brands"
+            className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+          />
+        </div>
+        <div className="w-20">
+          <label htmlFor="ai-count" className="mb-1 block text-xs font-medium text-ink/70">
+            Items
+          </label>
+          <input
+            id="ai-count"
+            name="count"
+            type="number"
+            min={1}
+            max={24}
+            defaultValue={8}
+            className="w-full rounded-md border border-bone bg-white px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+          />
+        </div>
+        <SubmitButton pendingLabel="Generating…">Generate items</SubmitButton>
+      </form>
 
       <details className="mt-6 rounded-xl border border-bone bg-white">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-taupe-dark">

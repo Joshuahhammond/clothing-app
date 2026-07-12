@@ -1,0 +1,137 @@
+import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { z } from "zod";
+import { CATEGORIES } from "@/lib/types";
+
+const MODEL = "claude-opus-4-8";
+
+// Resolves ANTHROPIC_API_KEY from the environment
+const client = new Anthropic();
+
+const GeneratedItemSchema = z.object({
+  name: z.string().describe("Short product name, e.g. 'Cropped wool blazer'"),
+  brand: z
+    .string()
+    .describe("A plausible real-world brand that sells this kind of piece"),
+  category: z.enum(CATEGORIES),
+  color_hex: z
+    .string()
+    .describe(
+      "Dominant color as a 6-digit lowercase hex like #1e3a8a. Pick realistic garment colors, varied across the set."
+    ),
+  price_dollars: z
+    .number()
+    .describe("Realistic retail price in US dollars"),
+});
+
+const GeneratedItemsSchema = z.object({
+  items: z.array(GeneratedItemSchema),
+});
+
+const GeneratedWardrobeSchema = z.object({
+  items: z.array(
+    z.object({
+      name: z.string(),
+      brand: z.string(),
+      category: z.enum(CATEGORIES),
+      color_hex: z
+        .string()
+        .describe("Dominant color as a 6-digit lowercase hex like #1e3a8a"),
+      notes: z
+        .string()
+        .describe("One short note on fit, condition, or how it's worn"),
+    })
+  ),
+});
+
+const GeneratedLookbookSchema = z.object({
+  title: z.string().describe("Evocative lookbook title, 2-6 words"),
+  description: z
+    .string()
+    .describe("One or two sentences a stylist would write introducing this collection to a client"),
+  items: z.array(
+    GeneratedItemSchema.extend({
+      note: z
+        .string()
+        .describe(
+          "A warm, specific styling note written to the client about this piece — how to wear it, what it pairs with"
+        ),
+    })
+  ),
+});
+
+export type GeneratedItem = z.infer<typeof GeneratedItemSchema>;
+export type GeneratedWardrobe = z.infer<typeof GeneratedWardrobeSchema>;
+export type GeneratedLookbook = z.infer<typeof GeneratedLookbookSchema>;
+
+const STYLIST_SYSTEM =
+  "You are an expert personal stylist and fashion buyer with encyclopedic knowledge of " +
+  "real brands, silhouettes, fabrics, and color theory. You generate realistic, varied, " +
+  "tasteful clothing data for a stylist's toolbox app. Colors should be true to how the " +
+  "garment would actually look; prices should match the named brand's real market position.";
+
+export async function generateItems(
+  brief: string,
+  count: number
+): Promise<GeneratedItem[]> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Generate exactly ${count} clothing items for a stylist's recommendation library. Brief from the stylist: "${brief}". Vary categories and colors sensibly across the set.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(GeneratedItemsSchema) },
+  });
+
+  if (!response.parsed_output) throw new Error("AI returned no items");
+  return response.parsed_output.items;
+}
+
+export async function generateWardrobe(
+  persona: string,
+  count: number
+): Promise<GeneratedWardrobe["items"]> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Generate exactly ${count} wardrobe items this client would already own, based on the stylist's description of them: "${persona}". These are existing closet pieces (mix of ages and price points), not new recommendations.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(GeneratedWardrobeSchema) },
+  });
+
+  if (!response.parsed_output) throw new Error("AI returned no wardrobe items");
+  return response.parsed_output.items;
+}
+
+export async function generateLookbook(
+  brief: string,
+  clientName: string | null,
+  itemCount: number
+): Promise<GeneratedLookbook> {
+  const forClient = clientName ? ` The client's name is ${clientName}.` : "";
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system: STYLIST_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Create a complete lookbook with exactly ${itemCount} pieces. Stylist's brief: "${brief}".${forClient} The pieces should work together as a cohesive collection, and each styling note should reference how it fits into the overall look.`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(GeneratedLookbookSchema) },
+  });
+
+  if (!response.parsed_output) throw new Error("AI returned no lookbook");
+  return response.parsed_output;
+}
