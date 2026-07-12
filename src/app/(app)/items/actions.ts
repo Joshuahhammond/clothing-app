@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
 import { generateItems, extractProductFromPage } from "@/lib/ai";
+import { processProductImage } from "@/lib/images";
 
 async function fetchProductPage(url: string): Promise<{ head: string; ogImage: string }> {
   const res = await fetch(url, {
@@ -57,6 +58,8 @@ export async function importItemFromUrl(formData: FormData) {
     redirect(`/items?error=${encodeURIComponent(message)}`);
   }
 
+  const cutout = ogImage ? await processProductImage(ogImage, user.id, supabase) : "";
+
   const { h, s, l } = hexToHsl(product.color_hex);
   await supabase.from("items").insert({
     stylist_id: user.id,
@@ -65,7 +68,7 @@ export async function importItemFromUrl(formData: FormData) {
     category: product.category,
     price_cents: product.price_dollars > 0 ? Math.round(product.price_dollars * 100) : null,
     product_url: url,
-    image_url: ogImage,
+    image_url: cutout,
     color_hex: product.color_hex,
     hue: h,
     saturation: s,

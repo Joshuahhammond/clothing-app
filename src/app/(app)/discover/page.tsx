@@ -108,6 +108,9 @@ export default async function DiscoverPage({ searchParams }: Props) {
                       <input type="hidden" name="price" value={p.price ?? ""} />
                       <input type="hidden" name="product_url" value={p.url} />
                       <input type="hidden" name="image_url" value={p.image} />
+                      {p.images.map((img) => (
+                        <input key={img} type="hidden" name="images" value={img} />
+                      ))}
                       <input type="hidden" name="color_hex" value={p.color_hex} />
                       <SubmitButton
                         pendingLabel="Adding…"

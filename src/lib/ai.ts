@@ -99,6 +99,47 @@ export async function extractProductFromPage(
   return response.parsed_output;
 }
 
+const BestImageSchema = z.object({
+  index: z
+    .number()
+    .describe("Zero-based index of the best image for a flat-lay collage"),
+});
+
+/**
+ * Given product photo URLs, pick the one that will look best cut out on a
+ * white collage: the garment alone (flat-lay or ghost mannequin), not worn
+ * by a model, minimal props. Falls back to 0 on any failure.
+ */
+export async function pickBestImage(imageUrls: string[]): Promise<number> {
+  if (imageUrls.length <= 1) return 0;
+  try {
+    const response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...imageUrls.slice(0, 4).map((url) => ({
+              type: "image" as const,
+              source: { type: "url" as const, url },
+            })),
+            {
+              type: "text" as const,
+              text: "These are photos of one clothing product, in order (index 0 first). Pick the best one for a stylist's flat-lay collage: the product alone — flat-lay or ghost-mannequin — NOT worn by a model, no busy scene. If every photo has a model, pick the plainest, most frontal one.",
+            },
+          ],
+        },
+      ],
+      output_config: { format: zodOutputFormat(BestImageSchema) },
+    });
+    const idx = response.parsed_output?.index ?? 0;
+    return idx >= 0 && idx < imageUrls.length ? idx : 0;
+  } catch {
+    return 0;
+  }
+}
+
 const DiscoveryPlanSchema = z.object({
   store_ids: z
     .array(z.string())
