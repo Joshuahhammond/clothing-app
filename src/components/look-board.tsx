@@ -7,10 +7,6 @@ import { formatPrice } from "@/lib/color";
  */
 export function LookBoard({ items, label }: { items: LookItem[]; label?: string }) {
   const placed = composeLook(items);
-  // How far down the composition actually reaches (percent of canvas)
-  const deepest = placed.length
-    ? Math.max(...placed.map(({ slot }) => slot.top + slot.height))
-    : 0;
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-bone">
@@ -22,18 +18,22 @@ export function LookBoard({ items, label }: { items: LookItem[]; label?: string 
 
       {placed.length > 0 && (
         <div
-          className={`relative mx-auto w-full max-w-xl bg-[#f4efe6] ${
-            placed.length <= 2
-              ? "aspect-[3/2]"
-              : deepest <= 88 || placed.length <= 5
-                ? "aspect-square"
-                : "aspect-[4/5]"
+          className={`relative isolate mx-auto w-full max-w-xl bg-[#f4efe6] ${
+            placed.length <= 2 ? "aspect-[3/2]" : "aspect-[4/5]"
           }`}
         >
           {placed.map(({ item, slot }) => (
-            <div
+            // Blend on the img itself: a wrapper div with z-index+transform
+            // creates a stacking context that ISOLATES mix-blend-multiply.
+            // Only card fallbacks blend; true cutouts occlude via z-order.
+            // eslint-disable-next-line @next/next/no-img-element -- retailer CDNs
+            <img
               key={item.id}
-              className="absolute"
+              src={item.image_url}
+              alt={item.name}
+              className={`absolute object-contain ${
+                /\.card\.png($|[?#])/.test(item.image_url) ? "mix-blend-multiply" : ""
+              }`}
               style={{
                 left: `${slot.left}%`,
                 top: `${slot.top}%`,
@@ -41,22 +41,10 @@ export function LookBoard({ items, label }: { items: LookItem[]; label?: string 
                 height: `${slot.height}%`,
                 zIndex: slot.z,
                 transform: slot.rotate ? `rotate(${slot.rotate}deg)` : undefined,
+                objectPosition: `${slot.alignX ?? "center"} ${slot.align ?? "center"}`,
               }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- retailer CDNs */}
-              <img
-                src={item.image_url}
-                alt={item.name}
-                className={`h-full w-full object-contain mix-blend-multiply ${
-                  slot.align === "bottom"
-                    ? "object-bottom"
-                    : slot.align === "top"
-                      ? "object-top"
-                      : ""
-                }`}
-                loading="lazy"
-              />
-            </div>
+              loading="lazy"
+            />
           ))}
         </div>
       )}

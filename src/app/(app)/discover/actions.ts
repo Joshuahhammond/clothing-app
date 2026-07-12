@@ -32,7 +32,7 @@ export async function addDiscoveredItem(formData: FormData) {
     const chosen = pool[best.index];
     // Flats cut out directly; on-model shots get a headless garment crop first
     const crop = best.flat ? null : await locateGarment(chosen, name);
-    imageUrl = await processProductImage(chosen, user.id, supabase, crop);
+    imageUrl = await processProductImage(chosen, user.id, supabase, crop, best.flat);
   }
 
   await supabase.from("items").insert({

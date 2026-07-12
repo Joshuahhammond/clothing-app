@@ -7,7 +7,7 @@ export type SourceProduct = {
   title: string;
   url: string;
   image: string;
-  /** up to 4 candidate photos; AI picks the best for cutouts at add time */
+  /** up to 8 candidate photos; AI picks the best for cutouts at add time */
   images: string[];
   price: number | null;
   productType: string;
@@ -53,7 +53,7 @@ export async function fetchStoreProducts(
         images: (p.images ?? [])
           .map((i) => i.src)
           .filter((s): s is string => Boolean(s))
-          .slice(0, 4),
+          .slice(0, 8),
         price: p.variants?.[0]?.price ? parseFloat(p.variants[0].price) : null,
         productType: p.product_type ?? "",
         tags: Array.isArray(p.tags) ? p.tags : (p.tags ?? "").split(",").map((t) => t.trim()),

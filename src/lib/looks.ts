@@ -39,6 +39,8 @@ export type Slot = {
   rotate: number;
   /** anchor within the slot: tops hang to their hem, bottoms hang from the waist */
   align?: "top" | "bottom";
+  /** horizontal anchor so letterboxed cutouts hug their rail, not the slot center */
+  alignX?: "left" | "right";
 };
 
 const take = (pools: Map<string, LookItem[]>, key: string, n: number): LookItem[] =>
@@ -92,6 +94,13 @@ export function accKind(name: string): "bag" | "belt" | "sunglasses" | "jewelry"
 export const isCutout = (url: string) => url.includes("/cutouts/");
 
 /**
+ * Cutouts that may contain body fragments or an opaque rectangle — these
+ * never earn the dressed hem-over-waist overlap. Legacy suffix-less URLs
+ * read as flat so existing boards don't regress.
+ */
+export const isModelCrop = (url: string) => /\.(model|card)\.png($|[?#])/.test(url);
+
+/**
  * Column-cluster composition (Stefana Silber style): the outfit reads as a
  * dressed column — top overlapping the trousers below it, shoes at the foot,
  * bag beside the column, small accessories sprinkled around the edges.
@@ -99,11 +108,18 @@ export const isCutout = (url: string) => url.includes("/cutouts/");
 export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Slot }> {
   const withImage = items.filter((i) => i.image_url && isCutout(i.image_url));
 
-  const dress = withImage.find((i) => i.category === "dresses");
+  // Miscategorized trinkets must never claim a hero garment slot — a
+  // 13%-wide jewelry slot can't produce a 38%-wide earring card, but a
+  // mislabeled "top" earring in the 44×36 hero slot can.
+  const isSmallAcc = (i: LookItem) =>
+    ["jewelry", "sunglasses", "belt"].includes(accKind(i.name));
+  const dress = withImage.find((i) => i.category === "dresses" && !isSmallAcc(i));
   const heads = withImage
-    .filter((i) => ["outerwear", "tops"].includes(i.category))
+    .filter((i) => ["outerwear", "tops"].includes(i.category) && !isSmallAcc(i))
     .slice(0, 3);
-  const bottoms = withImage.filter((i) => i.category === "bottoms").slice(0, 2);
+  const bottoms = withImage
+    .filter((i) => i.category === "bottoms" && !isSmallAcc(i))
+    .slice(0, 2);
   const shoes = withImage.filter((i) => i.category === "shoes").slice(0, 2);
   const rest = withImage.filter(
     (i) => i !== dress && !heads.includes(i) && !bottoms.includes(i) && !shoes.includes(i)
@@ -112,8 +128,14 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
   const belts = rest.filter((i) => accKind(i.name) === "belt").slice(0, 1);
   const sunnies = rest.filter((i) => accKind(i.name) === "sunglasses").slice(0, 1);
   const jewelry = rest.filter((i) => accKind(i.name) === "jewelry").slice(0, 2);
+  // Overflow garments don't belong in the rotated corner trinket slots
+  const GARMENT_CATS = ["outerwear", "dresses", "tops", "bottoms"];
   const others = rest
-    .filter((i) => ![...bags, ...belts, ...sunnies, ...jewelry].includes(i))
+    .filter(
+      (i) =>
+        !GARMENT_CATS.includes(i.category) &&
+        ![...bags, ...belts, ...sunnies, ...jewelry].includes(i)
+    )
     .slice(0, 2);
 
   const placed: Array<{ item: LookItem; slot: Slot }> = [];
@@ -124,37 +146,51 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
   if (dress) {
     // Dress owns the column; tops become satellites
     put(dress, { left: 30, top: 2, width: 42, height: 76, z: 3, rotate: 0 });
-    put(heads[0], { left: -2, top: 4, width: 36, height: 36, z: 4, rotate: 0 });
-    put(heads[1], { left: 70, top: 2, width: 32, height: 32, z: 2, rotate: 0 });
-    put(bottoms[0], { left: 68, top: 34, width: 34, height: 46, z: 2, rotate: 0 });
+    put(heads[0], { left: 2, top: 4, width: 30, height: 30, z: 4, rotate: 0, alignX: "left" });
+    put(heads[1], { left: 66, top: 2, width: 30, height: 28, z: 2, rotate: 0, alignX: "right" });
+    put(bottoms[0], { left: 64, top: 36, width: 32, height: 44, z: 2, rotate: 0, alignX: "right" });
   } else if (heads.length === 0) {
     // No garment for the column top — bottoms take the full height
     put(bottoms[0], { left: 6, top: 3, width: 42, height: 78, z: 2, rotate: 0 });
     put(bottoms[1], { left: 54, top: 5, width: 42, height: 76, z: 2, rotate: 0 });
   } else {
     // The dressed column: the top's hem meets the trouser's waistband on a
-    // shared center axis, with a slight dressed overlap
-    put(heads[0], { left: 16, top: 2, width: 44, height: 36, z: 4, rotate: 0, align: "bottom" });
-    put(heads[1], { left: 60, top: 1, width: 38, height: 32, z: 3, rotate: 0, align: "bottom" });
-    put(heads[2], { left: -2, top: 12, width: 32, height: 30, z: 2, rotate: 0, align: "bottom" });
-    put(bottoms[0], { left: 18, top: 35, width: 40, height: 50, z: 2, rotate: 0, align: "top" });
-    put(bottoms[1], { left: 62, top: 36, width: 34, height: 46, z: 2, rotate: 0, align: "top" });
+    // shared center axis. Overlap is an earned privilege of clean flat
+    // cutouts — model-crops carry body fragments, so they get air instead.
+    const crops = [heads[0], bottoms[0]].filter(
+      (i) => i && isModelCrop(i.image_url)
+    ).length;
+    if (crops === 2) {
+      // Never stack two body crops: side-by-side, no overlap
+      put(heads[0], { left: 4, top: 2, width: 42, height: 46, z: 4, rotate: 0 });
+      put(bottoms[0], { left: 52, top: 4, width: 42, height: 62, z: 2, rotate: 0 });
+      put(heads[1], { left: 52, top: 70, width: 30, height: 16, z: 3, rotate: 0 });
+    } else {
+      const gap = crops === 1 ? 5 : 0; // one body crop: 5% air instead of overlap
+      put(heads[0], { left: 16, top: 2, width: 44, height: 36, z: 4, rotate: 0, align: gap ? undefined : "bottom" });
+      put(bottoms[0], { left: 18, top: 35 + gap, width: 40, height: 50 - gap, z: 2, rotate: 0, align: gap ? undefined : "top" });
+      put(heads[1], { left: 62, top: 2, width: 34, height: 30, z: 3, rotate: 0, align: "bottom", alignX: "right" });
+      put(heads[2], { left: 2, top: 12, width: 28, height: 26, z: 2, rotate: 0, align: "bottom", alignX: "left" });
+      put(bottoms[1], { left: 62, top: 36, width: 34, height: 46, z: 2, rotate: 0, align: "top", alignX: "right" });
+    }
   }
 
-  put(shoes[0], { left: 22, top: 84, width: 28, height: 14, z: 5, rotate: 0 });
-  put(shoes[1], { left: 55, top: 85, width: 26, height: 13, z: 6, rotate: 0 });
+  // Reference shoes are wide but short (6-9% tall) and tuck under the
+  // trouser hem (85%) by a few percent
+  put(shoes[0], { left: 24, top: 81, width: 24, height: 10, z: 5, rotate: 0 });
+  put(shoes[1], { left: 54, top: 82, width: 22, height: 9, z: 6, rotate: 0 });
 
   // Satellites: bag beside the column (left when the right column is busy)
   const rightBusy = bottoms.length > 1 || Boolean(dress);
   put(bags[0], rightBusy
-    ? { left: 0, top: 54, width: 26, height: 24, z: 5, rotate: 0 }
-    : { left: 66, top: 50, width: 28, height: 26, z: 5, rotate: 0 });
-  put(belts[0], { left: 63, top: 30, width: 22, height: 12, z: 6, rotate: -8 });
-  put(sunnies[0], { left: 4, top: 1, width: 16, height: 9, z: 6, rotate: -5 });
-  put(jewelry[0], { left: 2, top: 13, width: 13, height: 12, z: 6, rotate: 0 });
-  put(jewelry[1], { left: 3, top: 28, width: 12, height: 11, z: 6, rotate: 4 });
-  put(others[0], { left: 82, top: 62, width: 18, height: 16, z: 5, rotate: 3 });
-  put(others[1], { left: 2, top: 44, width: 18, height: 15, z: 5, rotate: -4 });
+    ? { left: 2, top: 55, width: 20, height: 20, z: 5, rotate: 0, alignX: "left" }
+    : { left: 68, top: 52, width: 20, height: 20, z: 5, rotate: 0, alignX: "right" });
+  put(belts[0], { left: 64, top: 31, width: 16, height: 9, z: 6, rotate: -8, alignX: "right" });
+  put(sunnies[0], { left: 4, top: 2, width: 14, height: 8, z: 6, rotate: -5, alignX: "left" });
+  put(jewelry[0], { left: 4, top: 14, width: 8, height: 8, z: 6, rotate: 0, alignX: "left" });
+  put(jewelry[1], { left: 5, top: 26, width: 7, height: 7, z: 6, rotate: 4, alignX: "left" });
+  put(others[0], { left: 82, top: 64, width: 14, height: 12, z: 5, rotate: 3, alignX: "right" });
+  put(others[1], { left: 3, top: 44, width: 13, height: 11, z: 5, rotate: -4, alignX: "left" });
 
   return placed;
 }

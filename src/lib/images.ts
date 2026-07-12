@@ -12,7 +12,8 @@ export async function processProductImage(
   imageUrl: string,
   ownerId: string,
   supabase: SupabaseClient,
-  crop?: GarmentBox | null
+  crop?: GarmentBox | null,
+  flat = true
 ): Promise<string> {
   if (!imageUrl) return "";
   try {
@@ -25,7 +26,7 @@ export async function processProductImage(
       signal: AbortSignal.timeout(15000),
       headers: { "User-Agent": "Mozilla/5.0" },
     });
-    let sourceBuf = Buffer.from(await res.arrayBuffer());
+    let sourceBuf: Buffer = Buffer.from(await res.arrayBuffer());
 
     if (crop) {
       const img = sharp(sourceBuf);
@@ -47,29 +48,38 @@ export async function processProductImage(
       new Blob([new Uint8Array(sourceBuf)], { type: "image/png" }),
       { output: { format: "image/png", quality: 0.9 } }
     );
-    let upload = Buffer.from(await blob.arrayBuffer());
+    let upload: Buffer = Buffer.from(await blob.arrayBuffer());
 
-    // Quality gate: low-contrast garments get shredded by segmentation —
-    // a near-empty cutout falls back to the clean rectangle photo, which
-    // still belongs on the board (reference boards mix both).
+    // Quality gate — judge the cutout by alpha density inside its own
+    // trimmed bounding box (scale-invariant), not whole-frame coverage.
+    // Small accessories legitimately cover little of the frame; the old
+    // whole-frame test demoted their good cutouts to photo-cards.
+    let variant: "flat" | "model" | "card" = crop || !flat ? "model" : "flat";
     try {
-      const stats = await sharp(upload).ensureAlpha().stats();
-      const alpha = stats.channels[3];
-      const coverage = (alpha?.mean ?? 255) / 255;
-      if (coverage < 0.2) {
-        // Trim the rectangle tight to its content so a white product photo
-        // blends into the canvas like a cutout instead of reading as a card
-        upload = await sharp(sourceBuf).trim({ threshold: 25 }).png().toBuffer();
+      const meta = await sharp(upload).metadata();
+      const frameArea = (meta.width ?? 1) * (meta.height ?? 1);
+      const { data: trimmed, info } = await sharp(upload)
+        .ensureAlpha()
+        .trim({ threshold: 10 })
+        .png()
+        .toBuffer({ resolveWithObject: true });
+      const stats = await sharp(trimmed).ensureAlpha().stats();
+      const fill = (stats.channels[3]?.mean ?? 0) / 255; // density inside content bbox
+      const bboxFrac = (info.width * info.height) / frameArea;
+      // Solid object: dense bbox. Thin jewelry (chains/hoops): sparse but compact.
+      if (fill >= 0.3 || (fill >= 0.1 && bboxFrac <= 0.35)) {
+        upload = trimmed;
       } else {
-        // Trim transparent margins so the PNG is tight to the garment —
-        // slot alignment then behaves predictably regardless of the photo
-        upload = await sharp(upload).trim({ threshold: 10 }).png().toBuffer();
+        variant = "card"; // shredded: sparse alpha over a large bbox
       }
     } catch {
-      // stats/trim failed — keep the cutout as-is
+      variant = "card"; // cutout trimmed to nothing
+    }
+    if (variant === "card") {
+      upload = await sharp(sourceBuf).trim({ threshold: 25 }).png().toBuffer();
     }
 
-    const path = `${ownerId}/${crypto.randomUUID()}.png`;
+    const path = `${ownerId}/${crypto.randomUUID()}.${variant}.png`;
     const { error } = await supabase.storage
       .from("cutouts")
       .upload(path, upload, { contentType: "image/png" });

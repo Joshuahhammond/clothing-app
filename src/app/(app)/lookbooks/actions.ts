@@ -226,7 +226,7 @@ async function runLookbookGeneration({
           const best = await pickBestImage(imgs);
           const chosenUrl = imgs[best.index] ?? product.image;
           const crop = best.flat ? null : await locateGarment(chosenUrl, product.title);
-          const imageUrl = await processProductImage(chosenUrl, userId, db, crop);
+          const imageUrl = await processProductImage(chosenUrl, userId, db, crop, best.flat);
           return { pick, imageUrl };
         })
       );

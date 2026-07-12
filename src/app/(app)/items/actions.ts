@@ -62,7 +62,7 @@ export async function importItemFromUrl(formData: FormData) {
   if (ogImage) {
     const { flat } = await pickBestImage([ogImage]);
     const crop = flat ? null : await locateGarment(ogImage, product.name);
-    cutout = await processProductImage(ogImage, user.id, supabase, crop);
+    cutout = await processProductImage(ogImage, user.id, supabase, crop, flat);
   }
 
   const { h, s, l } = hexToHsl(product.color_hex);

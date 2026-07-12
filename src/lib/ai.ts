@@ -303,37 +303,51 @@ export type BestImage = { index: number; flat: boolean };
  * white collage, and report whether it's a true product-only shot. Items
  * without a flat shot stay off the collage canvas.
  */
+const PICK_PROMPT =
+  "These are photos of ONE clothing product, labeled Image 0..N. Pick the best photo to cut out for a stylist's collage. Preference order: (1) ghost/invisible-mannequin shot, (2) flat-lay, (3) plain product still, (4) on-model ONLY if no product-only shot exists. Requirements: full garment visible, front-facing, uncropped. REJECT fabric/detail close-ups, back views, folded stacks, packaging, and any image whose color/pattern differs from Image 0 (variant colorways). Ties go to the lower index. Set flat=true only if the chosen image shows the product with no person wearing it; treat a visible mannequin with limbs, head, or torso the same as a model (flat=false). If every image has a model, pick the plainest, most frontal full-body one and set flat=false.";
+
+async function pickFrom(imageUrls: string[]): Promise<BestImage | null> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: [
+          // Label each image so the model's indices stay anchored
+          ...imageUrls.slice(0, 8).flatMap((url, i) => [
+            { type: "text" as const, text: `Image ${i}:` },
+            {
+              type: "image" as const,
+              source: { type: "url" as const, url: visionThumb(url) },
+            },
+          ]),
+          { type: "text" as const, text: PICK_PROMPT },
+        ],
+      },
+    ],
+    output_config: { format: zodOutputFormat(BestImageSchema) },
+  });
+  const out = response.parsed_output;
+  if (!out) return null;
+  return {
+    index: out.index >= 0 && out.index < imageUrls.length ? out.index : 0,
+    flat: out.flat,
+  };
+}
+
 export async function pickBestImage(imageUrls: string[]): Promise<BestImage> {
   if (imageUrls.length === 0) return { index: 0, flat: false };
   try {
-    const response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...imageUrls.slice(0, 4).map((url) => ({
-              type: "image" as const,
-              source: { type: "url" as const, url: visionThumb(url) },
-            })),
-            {
-              type: "text" as const,
-              text: "These are photos of one clothing product, in order (index 0 first). Pick the best one for a stylist's flat-lay collage: the product alone — flat-lay or ghost-mannequin — NOT worn by a model, no busy scene. Set flat=true only if your chosen photo truly shows the product with no person in it. If every photo has a model, pick the plainest, most frontal one and set flat=false.",
-            },
-          ],
-        },
-      ],
-      output_config: { format: zodOutputFormat(BestImageSchema) },
-    });
-    const out = response.parsed_output;
-    if (!out) return { index: 0, flat: false };
-    return {
-      index: out.index >= 0 && out.index < imageUrls.length ? out.index : 0,
-      flat: out.flat,
-    };
+    return (await pickFrom(imageUrls)) ?? { index: 0, flat: false };
   } catch {
-    return { index: 0, flat: false };
+    // One dead deep URL shouldn't dump the item into the worst on-model
+    // path — retry judging just the primary image before giving up.
+    try {
+      return (await pickFrom([imageUrls[0]])) ?? { index: 0, flat: false };
+    } catch {
+      return { index: 0, flat: false };
+    }
   }
 }
 
