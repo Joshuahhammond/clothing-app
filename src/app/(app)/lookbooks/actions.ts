@@ -154,16 +154,25 @@ async function runLookbookGeneration({
       [/sunglass/i, /sunglass|eyewear|\bframes\b/i],
       [/belt/i, /\bbelts?\b/i],
       [/scarf|stole/i, /\bscar(f|ves)\b|\bstoles?\b|bandana/i],
+      [/\bhair\b|headband|ribbon|claw/i, /headband|scrunchie|\bclaw\b|\bclips?\b|barrette|\bribbons?\b/i],
+      [/hosiery|tights|stocking|\bsocks?\b/i, /\btights\b|stockings?|\bsocks?\b|hosiery/i],
+      [/\bhats?\b|\bcaps?\b|beanie/i, /\bhats?\b|\bcaps?\b|beanie|bucket/i],
       [/bag|tote|clutch|crossbody|satchel/i, /\bbags?\b|\btotes?\b|clutch|crossbody|satchel|hobo|pouch/i],
       [/shoe|heel|mule|loafer|\bflats?\b|sandal|boot|slingback|ballerina|pump|sneaker/i,
         /\bshoes?\b|\bheels?\b|\bmules?\b|loafer|\bflats?\b|sandal|\bboots?\b|slingback|ballerina|\bpumps?\b|sneaker|\bslides?\b|trainer/i],
     ];
     const productText = (p: (typeof all)[number]) =>
       `${p.title} ${p.productType} ${p.tags.join(" ")}`;
+    // Products that read as garments — an unguarded accessory piece (hair
+    // ribbon, hosiery) must at minimum never be filled by one of these
+    const GARMENT_TEXT =
+      /\bshirts?\b|\btops?\b|\btees?\b|polo|dress|trouser|\bpants?\b|skirt|\bshorts?\b|sweater|\bknits?\b|cardigan|jacket|\bcoats?\b|blazer|jeans?|\btanks?\b|blouse|tunic|hoodie|romper|jumpsuit/i;
 
     const pool: typeof all = [];
     const lines: string[] = [];
     const poolByPiece = new Map<number, typeof all>();
+    const guardsByPiece = new Map<number, RegExp[]>();
+    const garmentPieceIdx = new Set<number>();
     flatPieces.forEach((piece, pi) => {
       let candidates = filterByKeywords(all, piece.keywords);
       // Zero candidates → retry with just the strongest (first two) stems
@@ -177,6 +186,8 @@ async function runLookbookGeneration({
       const guards = isGarmentPiece
         ? []
         : ROLE_GUARDS.filter(([role]) => role.test(`${piece.role} ${piece.description}`)).map(([, ok]) => ok);
+      guardsByPiece.set(pi, guards);
+      if (isGarmentPiece) garmentPieceIdx.add(pi);
       if (isGarmentPiece) {
         // Reverse guard: a garment piece must never be filled by an
         // accessory product (a woven tote once matched "wide-leg trousers")
@@ -222,6 +233,24 @@ async function runLookbookGeneration({
       const product = pool[m.index];
       const piece = flatPieces[m.piece];
       if (!product || !piece) continue;
+      // The AI matcher picks from the GLOBAL candidate list and can
+      // cross-assign (a black top once shipped as "necklace"). Enforce the
+      // piece's type guard deterministically — no exceptions.
+      const text = productText(product);
+      if (!garmentPieceIdx.has(m.piece)) {
+        const guards = guardsByPiece.get(m.piece) ?? [];
+        const typeOk = guards.length > 0
+          ? guards.some((ok) => ok.test(text))
+          : !GARMENT_TEXT.test(text); // unguarded roles at least reject garments
+        if (!typeOk) {
+          console.log(`[lookbook ${lookbookId}] type reject: ${product.title} as ${piece.role}`);
+          continue;
+        }
+      } else if (!GARMENT_TEXT.test(text)) {
+        // A garment piece must be filled by something that reads as a garment
+        console.log(`[lookbook ${lookbookId}] type reject: ${product.title} as ${piece.role}`);
+        continue;
+      }
       const seen = seenPerOutfit.get(piece.outfit) ?? new Set<string>();
       if (seen.has(product.url)) continue;
       seen.add(product.url);
