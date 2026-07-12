@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { createClient as createSupabaseJs, type SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
-import { planDiscovery, designLookbook, matchPiecesToProducts, pickBestImage, locateGarment } from "@/lib/ai";
+import { planDiscovery, designLookbook, matchPiecesToProducts, pickBestImage, locateGarment, verifyPaletteMatches } from "@/lib/ai";
 import { processProductImage } from "@/lib/images";
 import { SOURCES, sourceById } from "@/lib/sources";
 import { fetchStoreProducts, filterByKeywords } from "@/lib/shopify";
@@ -205,6 +205,7 @@ async function runLookbookGeneration({
       color_hex: string;
       note: string;
       outfit: number;
+      pieceIdx: number;
     }> = [];
     for (const m of matches) {
       const product = pool[m.index];
@@ -220,6 +221,7 @@ async function runLookbookGeneration({
         color_hex: piece.color_hex,
         note: m.note,
         outfit: piece.outfit,
+        pieceIdx: m.piece,
       });
     }
     // Guaranteed fill: a designed piece the matcher dropped still gets its
@@ -241,21 +243,65 @@ async function runLookbookGeneration({
         color_hex: piece.color_hex,
         note: "",
         outfit: piece.outfit,
+        pieceIdx: pi,
       });
       console.log(`[lookbook ${lookbookId}] piece ${pi} (${piece.role}) auto-filled: ${fallback.title}`);
     });
 
     if (chosen.length === 0) throw new Error("Couldn't match the design to store inventory");
-    chosen.sort((a, b) => a.outfit - b.outfit);
+
+    // 3.5 Vision palette check — titles lie about color ("chocolate" that
+    // photographs olive). Failed picks try one replacement candidate from
+    // their pool; if that fails too, the piece drops — a gap beats a clash.
+    const wantFor = (ci: number) => {
+      const piece = flatPieces[chosen[ci].pieceIdx];
+      return `${piece.description} (intended color ${piece.color_hex})`;
+    };
+    const verdicts = await verifyPaletteMatches(
+      chosen.map((c, ci) => ({ item: ci, imageUrl: c.product.image, want: wantFor(ci) }))
+    );
+    const replacements = new Map<number, (typeof all)[number]>();
+    chosen.forEach((c, ci) => {
+      if (verdicts.get(ci) !== false) return;
+      const seen = seenPerOutfit.get(c.outfit) ?? new Set<string>();
+      const alt = (poolByPiece.get(c.pieceIdx) ?? []).find(
+        (p) => p.url !== c.product.url && !seen.has(p.url)
+      );
+      if (alt) replacements.set(ci, alt);
+    });
+    const altVerdicts = replacements.size
+      ? await verifyPaletteMatches(
+          [...replacements.entries()].map(([ci, p]) => ({
+            item: ci,
+            imageUrl: p.image,
+            want: wantFor(ci),
+          }))
+        )
+      : new Map<number, boolean>();
+    const kept = chosen.filter((c, ci) => {
+      if (verdicts.get(ci) !== false) return true;
+      const alt = replacements.get(ci);
+      if (alt && altVerdicts.get(ci) === true) {
+        console.log(`[lookbook ${lookbookId}] palette swap: ${c.product.title} → ${alt.title}`);
+        seenPerOutfit.get(c.outfit)?.add(alt.url);
+        c.product = alt;
+        return true;
+      }
+      console.log(`[lookbook ${lookbookId}] palette drop: ${c.product.title}`);
+      return false;
+    });
+
+    if (kept.length === 0) throw new Error("Couldn't match the design to store inventory");
+    kept.sort((a, b) => a.outfit - b.outfit);
     console.log(
-      `[lookbook ${lookbookId}] matched ${chosen.length}/${flatPieces.length} designed pieces (${matches.length} raw matches)`
+      `[lookbook ${lookbookId}] matched ${kept.length}/${flatPieces.length} designed pieces (${matches.length} raw matches, ${chosen.length - kept.length} palette drops)`
     );
 
     // 4. Photos in small batches (bg removal is CPU-heavy)
-    const prepared: Array<{ pick: (typeof chosen)[number]; imageUrl: string }> = [];
-    for (let i = 0; i < chosen.length; i += 4) {
+    const prepared: Array<{ pick: (typeof kept)[number]; imageUrl: string }> = [];
+    for (let i = 0; i < kept.length; i += 4) {
       const batch = await Promise.all(
-        chosen.slice(i, i + 4).map(async (pick) => {
+        kept.slice(i, i + 4).map(async (pick) => {
           const { product } = pick;
           const imgs = product.images.length > 0 ? product.images : [product.image];
           const best = await pickBestImage(imgs);

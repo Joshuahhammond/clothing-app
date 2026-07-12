@@ -46,7 +46,7 @@ const LookbookDesignSchema = z.object({
         pieces: z
           .array(PieceSchema)
           .describe(
-            "8-11 pieces forming this COMPLETE, abundant outfit. MANDATORY per outfit: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, AND at least two finishing accessories from belt / sunglasses / earrings / necklace / bracelet. Outerwear when it belongs. Editorial collages feel generous — never sparse."
+            "8-14 pieces forming this COMPLETE, abundant outfit. MANDATORY per outfit: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, AND at least two finishing accessories from belt / sunglasses / earrings / necklace / bracelet. Outerwear when it belongs. If the brief enumerates specific pieces, include EVERY listed piece — it's an exact recreation. Editorial collages feel generous — never sparse."
           ),
       })
     )
@@ -76,7 +76,7 @@ export async function designLookbook(
       messages: [
         {
           role: "user",
-          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision that OPENS BY NAMING THE PALETTE (e.g. "chocolate / cream / tan + gold"), then each outfit as a named look with a numbered piece list of 8-11 pieces. Every piece's color must come from the named palette. Every outfit MUST be head-to-toe AND fully finished: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, and at least two more finishing accessories (belt, sunglasses, earrings, necklace, bracelet); outerwear if it belongs. Editorial boards feel abundant — never sparse. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
+          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision that OPENS BY NAMING THE PALETTE (e.g. "chocolate / cream / tan + gold"), then each outfit as a named look with a numbered piece list of 8-14 pieces. If the brief enumerates specific pieces, include EVERY listed piece — the client wants an exact recreation. Every piece's color must come from the named palette. Every outfit MUST be head-to-toe AND fully finished: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, and at least two more finishing accessories (belt, sunglasses, earrings, necklace, bracelet); outerwear if it belongs. Editorial boards feel abundant — never sparse. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
         },
       ],
     });
@@ -355,6 +355,61 @@ export async function pickBestImage(imageUrls: string[]): Promise<BestImage> {
       return { index: 0, flat: false };
     }
   }
+}
+
+const PaletteCheckSchema = z.object({
+  verdicts: z.array(
+    z.object({
+      item: z.number().describe("Item number exactly as labeled"),
+      ok: z
+        .boolean()
+        .describe("true if the product photo's dominant color belongs to the designed color family"),
+    })
+  ),
+});
+
+/**
+ * Vision pass over final picks: product titles lie about color ("chocolate"
+ * that photographs olive), and text matching can't see that. Batched
+ * thumbnails keep this to 1-2 calls per lookbook. Items missing from the
+ * result (or a failed batch) default to keep — density beats paranoia.
+ */
+export async function verifyPaletteMatches(
+  checks: Array<{ item: number; imageUrl: string; want: string }>
+): Promise<Map<number, boolean>> {
+  const out = new Map<number, boolean>();
+  for (let i = 0; i < checks.length; i += 10) {
+    const batch = checks.slice(i, i + 10);
+    try {
+      const response = await client.messages.parse({
+        model: MODEL,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...batch.flatMap((c) => [
+                { type: "text" as const, text: `Item ${c.item} — designed as: ${c.want}` },
+                {
+                  type: "image" as const,
+                  source: { type: "url" as const, url: visionThumb(c.imageUrl) },
+                },
+              ]),
+              {
+                type: "text" as const,
+                text: "For each numbered item judge ONLY color: does the product photo's dominant color belong to the designed color family? Neutrals (black, white, cream, tan, grey, denim, natural leather, tortoise, gold, silver) are compatible with any palette unless the design names a different specific color. A saturated hue the design does not name is NOT ok.",
+              },
+            ],
+          },
+        ],
+        output_config: { format: zodOutputFormat(PaletteCheckSchema) },
+      });
+      for (const v of response.parsed_output?.verdicts ?? []) out.set(v.item, v.ok);
+    } catch {
+      // batch failed — those items default to keep
+    }
+  }
+  return out;
 }
 
 const GarmentBoxSchema = z.object({

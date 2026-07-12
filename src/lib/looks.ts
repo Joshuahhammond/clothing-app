@@ -1,7 +1,7 @@
 // Compose lookbook items into outfit "looks" and assign collage positions.
-// Layout mirrors a stylist's board: garments in a row across the top,
-// trousers flanking tall on the sides, shoes stacked bottom-center,
-// accessories tucked into the middle gaps.
+// Layout mirrors a stylist's board: dressed columns (top over bottom, or a
+// dress) side by side, shoes at the foot, bags overlaying column edges,
+// trinkets in the gaps between column tops.
 
 export type LookItem = {
   id: string;
@@ -101,33 +101,36 @@ export const isCutout = (url: string) => url.includes("/cutouts/");
 export const isModelCrop = (url: string) => /\.(model|card)\.png($|[?#])/.test(url);
 
 /**
- * Column-cluster composition (Stefana Silber style): the outfit reads as a
- * dressed column — top overlapping the trousers below it, shoes at the foot,
- * bag beside the column, small accessories sprinkled around the edges.
+ * Column-packed composition (Stefana Silber / Hue & Stripe style): every
+ * top pairs with a bottom into a dressed column, dresses and unpaired
+ * garments hold columns alone — up to 4 columns side by side, so a 14-piece
+ * capsule reads as interlocking mini-outfits instead of dropping garments.
  */
 export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Slot }> {
   const withImage = items.filter((i) => i.image_url && isCutout(i.image_url));
 
-  // Miscategorized trinkets must never claim a hero garment slot — a
-  // 13%-wide jewelry slot can't produce a 38%-wide earring card, but a
-  // mislabeled "top" earring in the 44×36 hero slot can.
+  // Miscategorized trinkets must never claim a garment column — a
+  // mislabeled "top" earring in a 40%-wide column reads absurd.
   const isSmallAcc = (i: LookItem) =>
     ["jewelry", "sunglasses", "belt"].includes(accKind(i.name));
-  const dress = withImage.find((i) => i.category === "dresses" && !isSmallAcc(i));
+  const dresses = withImage
+    .filter((i) => i.category === "dresses" && !isSmallAcc(i))
+    .slice(0, 2);
   const heads = withImage
     .filter((i) => ["outerwear", "tops"].includes(i.category) && !isSmallAcc(i))
-    .slice(0, 3);
+    .slice(0, 4);
   const bottoms = withImage
     .filter((i) => i.category === "bottoms" && !isSmallAcc(i))
-    .slice(0, 2);
+    .slice(0, 3);
   const shoes = withImage.filter((i) => i.category === "shoes").slice(0, 2);
   const rest = withImage.filter(
-    (i) => i !== dress && !heads.includes(i) && !bottoms.includes(i) && !shoes.includes(i)
+    (i) =>
+      !dresses.includes(i) && !heads.includes(i) && !bottoms.includes(i) && !shoes.includes(i)
   );
-  const bags = rest.filter((i) => accKind(i.name) === "bag").slice(0, 1);
+  const bags = rest.filter((i) => accKind(i.name) === "bag").slice(0, 2);
   const belts = rest.filter((i) => accKind(i.name) === "belt").slice(0, 1);
   const sunnies = rest.filter((i) => accKind(i.name) === "sunglasses").slice(0, 1);
-  const jewelry = rest.filter((i) => accKind(i.name) === "jewelry").slice(0, 2);
+  const jewelry = rest.filter((i) => accKind(i.name) === "jewelry").slice(0, 3);
   // Overflow garments don't belong in the rotated corner trinket slots
   const GARMENT_CATS = ["outerwear", "dresses", "tops", "bottoms"];
   const others = rest
@@ -143,71 +146,71 @@ export function composeLook(items: LookItem[]): Array<{ item: LookItem; slot: Sl
     if (item) placed.push({ item, slot });
   };
 
-  if (dress) {
-    // Dress owns the column; tops become satellites
-    put(dress, { left: 30, top: 2, width: 42, height: 76, z: 3, rotate: 0 });
-    put(heads[0], { left: 2, top: 4, width: 30, height: 30, z: 4, rotate: 0, alignX: "left" });
-    put(heads[1], { left: 66, top: 2, width: 30, height: 28, z: 2, rotate: 0, alignX: "right" });
-    put(bottoms[0], { left: 64, top: 36, width: 32, height: 44, z: 2, rotate: 0, alignX: "right" });
-  } else if (heads.length === 0) {
-    // No garment for the column top — bottoms take the full height
-    put(bottoms[0], { left: 6, top: 3, width: 42, height: 78, z: 2, rotate: 0 });
-    put(bottoms[1], { left: 54, top: 5, width: 42, height: 76, z: 2, rotate: 0 });
-  } else if (bottoms.length === 0) {
-    // Tops-only outfit: garments sit side-by-side large so the canvas
-    // stays full instead of leaving the whole lower half empty
-    put(heads[0], { left: 6, top: 4, width: 46, height: 60, z: 3, rotate: 0 });
-    put(heads[1], { left: 52, top: 8, width: 44, height: 56, z: 2, rotate: 0 });
-    put(heads[2], { left: 28, top: 60, width: 36, height: 26, z: 4, rotate: 0 });
-  } else {
-    // The dressed column: the top's hem meets the trouser's waistband on a
-    // shared center axis. Overlap is an earned privilege of clean flat
-    // cutouts — model-crops carry body fragments, so they get air instead.
-    const crops = [heads[0], bottoms[0]].filter(
-      (i) => i && isModelCrop(i.image_url)
-    ).length;
-    if (crops === 2) {
-      // Never stack two body crops: side-by-side, no overlap
-      put(heads[0], { left: 4, top: 2, width: 42, height: 46, z: 4, rotate: 0 });
-      put(bottoms[0], { left: 52, top: 4, width: 42, height: 62, z: 2, rotate: 0 });
-      put(heads[1], { left: 52, top: 70, width: 30, height: 16, z: 3, rotate: 0 });
-    } else {
-      const gap = crops === 1 ? 5 : 0; // one body crop: 5% air instead of overlap
-      put(heads[0], { left: 16, top: 2, width: 44, height: 36, z: 4, rotate: 0, align: gap ? undefined : "bottom" });
-      put(bottoms[0], { left: 18, top: 35 + gap, width: 40, height: 50 - gap, z: 2, rotate: 0, align: gap ? undefined : "top" });
-      put(heads[1], { left: 62, top: 2, width: 34, height: 30, z: 3, rotate: 0, align: "bottom", alignX: "right" });
-      put(heads[2], { left: 2, top: 12, width: 28, height: 26, z: 2, rotate: 0, align: "bottom", alignX: "left" });
-      put(bottoms[1], { left: 62, top: 36, width: 34, height: 46, z: 2, rotate: 0, align: "top", alignX: "right" });
-    }
+  // ---- Garment columns -------------------------------------------------
+  type Col = { head?: LookItem; bottom?: LookItem; dress?: LookItem };
+  const cols: Col[] = [];
+  for (let i = 0; i < Math.max(heads.length, bottoms.length); i++) {
+    if (heads[i] || bottoms[i]) cols.push({ head: heads[i], bottom: bottoms[i] });
   }
+  for (const d of dresses) {
+    // Dress goes second-from-right like the references, not tacked on the end
+    cols.splice(Math.max(0, cols.length - 1), 0, { dress: d });
+  }
+  const columns = cols.slice(0, 4);
+  const n = columns.length;
 
-  // Reference shoes read 25-35% of board width. The box must be TALL
-  // enough that object-contain doesn't shrink square-ish shoe photos to
-  // nothing; align bottom keeps every aspect on one baseline under the
-  // trouser hem (85%).
-  put(shoes[0], { left: 18, top: 72, width: 30, height: 20, z: 5, rotate: 0, align: "bottom" });
-  put(shoes[1], { left: 52, top: 74, width: 28, height: 18, z: 6, rotate: 0, align: "bottom" });
+  const COL_W = n <= 1 ? 44 : n === 2 ? 40 : n === 3 ? 29 : 22;
+  const GAP = n <= 2 ? 6 : 3;
+  const startX = 50 - (n * COL_W + (n - 1) * GAP) / 2;
 
-  // Satellites: bag beside the column (left when the right column is busy)
-  const rightBusy = bottoms.length > 1 || Boolean(dress);
-  put(bags[0], rightBusy
-    ? { left: 2, top: 55, width: 20, height: 20, z: 5, rotate: 0, alignX: "left" }
-    : { left: 68, top: 52, width: 20, height: 20, z: 5, rotate: 0, alignX: "right" });
-  put(belts[0], { left: 62, top: 30, width: 18, height: 11, z: 6, rotate: -8, alignX: "right" });
-  // On dress boards the left corner is occupied by the satellite top, so
-  // trinkets move to the top-center gap (how the references style them);
-  // otherwise they stack down the left rail.
-  if (dress) {
-    put(sunnies[0], { left: 32, top: 0, width: 15, height: 8, z: 6, rotate: -5 });
-    put(jewelry[0], { left: 49, top: 1, width: 8, height: 8, z: 6, rotate: 0 });
-    put(jewelry[1], { left: 3, top: 35, width: 8, height: 8, z: 6, rotate: 4, alignX: "left" });
+  columns.forEach((col, i) => {
+    const x = startX + i * (COL_W + GAP);
+    const off = (i % 2) * 3; // stagger alternate columns for organic rhythm
+    if (col.dress) {
+      put(col.dress, { left: x, top: 2 + off, width: COL_W, height: 74, z: 3, rotate: 0 });
+    } else if (col.head && col.bottom) {
+      // Overlap is an earned privilege of clean flat cutouts — a column
+      // containing a model-crop gets air so bodies never merge.
+      const gap = isModelCrop(col.head.image_url) || isModelCrop(col.bottom.image_url) ? 5 : 0;
+      put(col.head, {
+        left: x, top: 2 + off, width: COL_W, height: 32, z: 4, rotate: 0,
+        align: gap ? undefined : "bottom",
+      });
+      put(col.bottom, {
+        left: x + 1, top: 33 + off + gap, width: COL_W - 2, height: 50 - gap, z: 2, rotate: 0,
+        align: gap ? undefined : "top",
+      });
+    } else if (col.head) {
+      put(col.head, { left: x, top: 4 + off, width: COL_W, height: 44, z: 3, rotate: 0 });
+    } else {
+      put(col.bottom, { left: x, top: 3 + off, width: COL_W, height: 72, z: 2, rotate: 0 });
+    }
+  });
+
+  // ---- Shoes: wide and substantial, overlapping the trouser hems -------
+  put(shoes[0], { left: 14, top: 78, width: 28, height: 16, z: 6, rotate: 0, align: "bottom" });
+  put(shoes[1], { left: 50, top: 80, width: 26, height: 14, z: 7, rotate: 0, align: "bottom" });
+
+  // ---- Satellites: bags overlay column edges (reference style) ---------
+  put(bags[0], { left: 76, top: 52, width: 20, height: 20, z: 5, rotate: 0, alignX: "right" });
+  put(bags[1], { left: 2, top: 52, width: 18, height: 18, z: 5, rotate: 0, alignX: "left" });
+  put(belts[0], { left: 58, top: 30, width: 16, height: 10, z: 6, rotate: -8 });
+
+  // Trinkets live in the gaps between column tops when there are columns
+  // to gap; on single-column boards they stack the left rail.
+  if (n >= 2) {
+    put(sunnies[0], { left: 22, top: 0, width: 14, height: 8, z: 6, rotate: -5 });
+    put(jewelry[0], { left: 56, top: 1, width: 8, height: 8, z: 6, rotate: 0 });
+    put(jewelry[1], { left: 2, top: 40, width: 8, height: 8, z: 6, rotate: 4, alignX: "left" });
+    put(jewelry[2], { left: 90, top: 36, width: 8, height: 8, z: 6, rotate: -3, alignX: "right" });
   } else {
     put(sunnies[0], { left: 4, top: 2, width: 16, height: 9, z: 6, rotate: -5, alignX: "left" });
     put(jewelry[0], { left: 4, top: 14, width: 8, height: 8, z: 6, rotate: 0, alignX: "left" });
     put(jewelry[1], { left: 5, top: 26, width: 7, height: 7, z: 6, rotate: 4, alignX: "left" });
+    put(jewelry[2], { left: 90, top: 36, width: 8, height: 8, z: 6, rotate: -3, alignX: "right" });
   }
-  put(others[0], { left: 82, top: 64, width: 14, height: 12, z: 5, rotate: 3, alignX: "right" });
-  put(others[1], { left: 3, top: 44, width: 13, height: 11, z: 5, rotate: -4, alignX: "left" });
+  put(others[0], { left: 80, top: 66, width: 14, height: 12, z: 5, rotate: 3, alignX: "right" });
+  put(others[1], { left: 2, top: 66, width: 13, height: 11, z: 5, rotate: -4, alignX: "left" });
 
   // References are dense edge-to-edge: a sparse board scales its whole
   // cluster up around the canvas center instead of floating tiny pieces.
