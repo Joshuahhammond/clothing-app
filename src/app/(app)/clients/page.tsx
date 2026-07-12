@@ -16,7 +16,7 @@ export default async function ClientsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-semibold text-ink">Clients</h1>
+      <h1 className="font-serif text-3xl font-medium tracking-tight text-ink">Clients</h1>
 
       <form
         action={addClient}

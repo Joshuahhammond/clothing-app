@@ -48,7 +48,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       </Link>
       <div className="mt-2 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-ink">{client.name}</h1>
+          <h1 className="font-serif text-3xl font-medium tracking-tight text-ink">{client.name}</h1>
           {client.email && <p className="text-sm text-ink/60">{client.email}</p>}
           {client.notes && <p className="mt-2 max-w-lg text-sm text-ink/70">{client.notes}</p>}
         </div>
@@ -166,37 +166,62 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
             Nothing tracked yet. Add what {client.name} already owns.
           </p>
         ) : (
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {wardrobe.map((w) => (
-              <li
-                key={w.id}
-                className="flex items-center gap-3 rounded-xl border border-bone bg-white p-3"
-              >
-                <span
-                  className="h-8 w-8 shrink-0 rounded-full border border-bone"
-                  style={{ backgroundColor: w.color_hex }}
-                  title={w.color_hex}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{w.name}</p>
-                  <p className="truncate text-xs text-ink/60">
-                    {[w.brand, w.category].filter(Boolean).join(" · ")}
-                  </p>
+          <div className="mt-6 rounded-2xl bg-white p-6 ring-1 ring-bone">
+            {CATEGORIES.filter((c) => wardrobe.some((w) => w.category === c)).map(
+              (category, ci) => (
+                <div key={category} className={ci > 0 ? "mt-8" : ""}>
+                  <div className="flex items-baseline gap-3">
+                    <h3 className="text-[11px] font-medium uppercase tracking-[0.25em] text-taupe-dark">
+                      {category}
+                    </h3>
+                    <span className="font-serif text-sm italic text-ink/40">
+                      {wardrobe.filter((w) => w.category === category).length}
+                    </span>
+                    <div className="h-px flex-1 bg-bone" />
+                  </div>
+                  <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {wardrobe
+                      .filter((w) => w.category === category)
+                      .map((w) => (
+                        <li key={w.id} className="group flex items-center gap-3 rounded-xl p-2 hover:bg-cream">
+                          {w.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- arbitrary hosts
+                            <img
+                              src={w.image_url}
+                              alt={w.name}
+                              className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain mix-blend-multiply"
+                            />
+                          ) : (
+                            <span
+                              className="h-10 w-10 shrink-0 rounded-full ring-1 ring-bone"
+                              style={{ backgroundColor: w.color_hex }}
+                              title={w.color_hex}
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-ink">{w.name}</p>
+                            <p className="truncate text-xs text-ink/50">
+                              {[w.brand, w.notes].filter(Boolean).join(" · ")}
+                            </p>
+                          </div>
+                          <form action={deleteWardrobeItem}>
+                            <input type="hidden" name="id" value={w.id} />
+                            <input type="hidden" name="client_id" value={client.id} />
+                            <button
+                              type="submit"
+                              aria-label={`Remove ${w.name}`}
+                              className="text-xs text-ink/30 opacity-0 hover:text-red-600 group-hover:opacity-100"
+                            >
+                              ✕
+                            </button>
+                          </form>
+                        </li>
+                      ))}
+                  </ul>
                 </div>
-                <form action={deleteWardrobeItem}>
-                  <input type="hidden" name="id" value={w.id} />
-                  <input type="hidden" name="client_id" value={client.id} />
-                  <button
-                    type="submit"
-                    aria-label={`Remove ${w.name}`}
-                    className="text-xs text-ink/50 hover:text-red-600"
-                  >
-                    ✕
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
+              )
+            )}
+          </div>
         )}
       </section>
 

@@ -4,7 +4,76 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
-import { generateItems } from "@/lib/ai";
+import { generateItems, extractProductFromPage } from "@/lib/ai";
+
+async function fetchProductPage(url: string): Promise<{ head: string; ogImage: string }> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (!res.ok) throw new Error(`That page returned ${res.status} — try adding the item manually`);
+
+  const html = (await res.text()).slice(0, 200_000);
+  const headMatch = html.match(/<head[\s\S]*?<\/head>/i);
+  // Keep meta/title/JSON-LD lines only, so the AI sees signal not scripts
+  const head = (headMatch ? headMatch[0] : html.slice(0, 20_000))
+    .split(/\n/)
+    .filter((line) => /<(meta|title|script[^>]*ld\+json)/i.test(line) || /"price"|og:|product:/i.test(line))
+    .join("\n")
+    .slice(0, 8000);
+
+  const ogImage =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1] ??
+    "";
+
+  return { head, ogImage };
+}
+
+export async function importItemFromUrl(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const url = String(formData.get("url") ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) {
+    redirect(`/items?error=${encodeURIComponent("Paste a full product URL (https://...)")}`);
+  }
+
+  let product;
+  let ogImage = "";
+  try {
+    const page = await fetchProductPage(url);
+    ogImage = page.ogImage;
+    product = await extractProductFromPage(url, page.head);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not import that product";
+    redirect(`/items?error=${encodeURIComponent(message)}`);
+  }
+
+  const { h, s, l } = hexToHsl(product.color_hex);
+  await supabase.from("items").insert({
+    stylist_id: user.id,
+    name: product.name,
+    brand: product.brand,
+    category: product.category,
+    price_cents: product.price_dollars > 0 ? Math.round(product.price_dollars * 100) : null,
+    product_url: url,
+    image_url: ogImage,
+    color_hex: product.color_hex,
+    hue: h,
+    saturation: s,
+    lightness: l,
+  });
+
+  revalidatePath("/items");
+}
 
 export async function addItem(formData: FormData) {
   const supabase = await createClient();

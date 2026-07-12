@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+      <h1 className="font-serif text-3xl font-medium tracking-tight text-ink">Dashboard</h1>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (

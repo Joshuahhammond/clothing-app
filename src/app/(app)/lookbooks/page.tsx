@@ -24,7 +24,7 @@ export default async function LookbooksPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-semibold text-ink">Lookbooks</h1>
+      <h1 className="font-serif text-3xl font-medium tracking-tight text-ink">Lookbooks</h1>
 
       {error && (
         <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

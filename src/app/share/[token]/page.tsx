@@ -23,92 +23,159 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// Cycling collage layout: varied cell sizes make the board feel hand-arranged
+const CELLS = [
+  "sm:col-span-3 h-72 sm:h-96",
+  "sm:col-span-3 h-64 sm:h-72",
+  "sm:col-span-2 h-56 sm:h-64",
+  "sm:col-span-2 h-64 sm:h-80",
+  "sm:col-span-2 h-56 sm:h-60",
+  "sm:col-span-4 h-64 sm:h-80",
+  "sm:col-span-2 h-56 sm:h-64",
+];
+
 export default async function SharedLookbookPage({ params }: Props) {
   const { token } = await params;
   const lookbook = await getSharedLookbook(token);
   if (!lookbook) notFound();
 
-  const brandColor = lookbook.stylist.brand_color || "#9b8570";
   const stylistName =
     lookbook.stylist.business_name || lookbook.stylist.full_name || "Your stylist";
 
   return (
     <main className="min-h-screen bg-cream">
-      <header
-        className="px-6 py-10 text-center text-cream"
-        style={{ backgroundColor: brandColor }}
-      >
-        <p className="text-sm uppercase tracking-widest opacity-80">{stylistName}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">{lookbook.title}</h1>
+      <header className="px-6 pb-12 pt-16 text-center">
+        <p className="text-xs font-medium uppercase tracking-[0.35em] text-taupe-dark">
+          {stylistName}
+        </p>
+        <h1 className="mx-auto mt-5 max-w-3xl font-serif text-5xl font-medium italic tracking-tight text-ink sm:text-6xl">
+          {lookbook.title}
+        </h1>
         {lookbook.client_name && (
-          <p className="mt-2 text-sm opacity-90">Curated for {lookbook.client_name}</p>
+          <p className="mt-5 text-xs uppercase tracking-[0.3em] text-ink/50">
+            Curated for {lookbook.client_name}
+          </p>
         )}
         {lookbook.description && (
-          <p className="mx-auto mt-3 max-w-xl text-sm opacity-90">{lookbook.description}</p>
+          <p className="mx-auto mt-6 max-w-xl font-serif text-lg italic leading-relaxed text-ink/70">
+            {lookbook.description}
+          </p>
         )}
+        <div className="mx-auto mt-8 h-px w-16 bg-taupe" />
       </header>
 
-      <section className="mx-auto max-w-4xl px-6 py-10">
+      <section className="mx-auto max-w-4xl px-4 pb-16 sm:px-6">
         {lookbook.items.length === 0 ? (
           <p className="text-center text-sm text-ink/60">
-            This lookbook doesn&apos;t have any items yet — check back soon.
+            This lookbook doesn&apos;t have any pieces yet — check back soon.
           </p>
         ) : (
-          <ul className="grid gap-6 sm:grid-cols-2">
-            {lookbook.items.map((item) => (
-              <li
-                key={item.id}
-                className="overflow-hidden rounded-2xl border border-bone bg-white shadow-sm"
-              >
-                {item.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- arbitrary retailer hosts
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    className="h-64 w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-40 w-full" style={{ backgroundColor: item.color_hex }} />
-                )}
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="font-semibold text-ink">{item.name}</h2>
-                      <p className="text-sm text-ink/60">
-                        {[item.brand, item.category].filter(Boolean).join(" · ")}
-                      </p>
-                    </div>
-                    {item.price_cents !== null && (
-                      <span className="text-sm font-semibold text-ink">
-                        {formatPrice(item.price_cents)}
-                      </span>
+          <>
+            {/* The look board */}
+            <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-bone sm:p-10">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-6">
+                {lookbook.items.map((item, i) => (
+                  <figure key={item.id} className={`flex flex-col ${CELLS[i % CELLS.length]}`}>
+                    {item.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- arbitrary retailer hosts
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="min-h-0 w-full flex-1 object-contain mix-blend-multiply"
+                      />
+                    ) : (
+                      <div
+                        className="flex min-h-0 w-full flex-1 items-center justify-center rounded-xl px-4"
+                        style={{ backgroundColor: item.color_hex }}
+                      >
+                        <span className="text-center font-serif text-lg italic text-white/95 drop-shadow-sm">
+                          {item.name}
+                        </span>
+                      </div>
                     )}
-                  </div>
-                  {item.note && (
-                    <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-sm italic text-ink/80">
-                      &ldquo;{item.note}&rdquo;
-                    </p>
-                  )}
-                  {item.product_url && (
-                    <a
-                      href={item.product_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium text-cream"
-                      style={{ backgroundColor: brandColor }}
-                    >
-                      Shop this piece ↗
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                    <figcaption className="mt-3">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ink/60">
+                        {[item.brand, item.name].filter(Boolean).join(" · ")}
+                      </p>
+                      {item.note && (
+                        <p className="mt-1 font-serif text-sm italic leading-snug text-taupe-dark">
+                          &ldquo;{item.note}&rdquo;
+                        </p>
+                      )}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+
+            {/* Shoppable pieces strip */}
+            <div className="mt-14">
+              <p className="text-center text-xs font-medium uppercase tracking-[0.3em] text-ink/50">
+                The pieces
+              </p>
+              <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {lookbook.items.map((item) => {
+                  const card = (
+                    <>
+                      {item.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- arbitrary retailer hosts
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="h-36 w-full object-contain p-3 mix-blend-multiply"
+                        />
+                      ) : (
+                        <div
+                          className="mx-3 mt-3 h-32 rounded-lg"
+                          style={{ backgroundColor: item.color_hex }}
+                        />
+                      )}
+                      <div className="border-t border-bone px-3 py-2.5">
+                        <p className="truncate text-xs font-medium text-ink">{item.name}</p>
+                        <p className="truncate text-[11px] text-ink/50">
+                          {[
+                            item.brand,
+                            item.price_cents !== null ? formatPrice(item.price_cents) : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                        {item.product_url && (
+                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.15em] text-taupe-dark">
+                            Shop ↗
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  );
+                  return (
+                    <li key={item.id} className="overflow-hidden rounded-xl bg-white ring-1 ring-bone">
+                      {item.product_url ? (
+                        <a
+                          href={item.product_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block transition-shadow hover:shadow-md"
+                        >
+                          {card}
+                        </a>
+                      ) : (
+                        card
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
         )}
       </section>
 
-      <footer className="pb-10 text-center text-xs text-ink/50">
-        Shared privately by {stylistName} · Powered by hammy
+      <footer className="border-t border-bone py-8 text-center">
+        <p className="text-xs uppercase tracking-[0.3em] text-ink/40">
+          Shared privately by {stylistName}
+        </p>
+        <p className="mt-2 text-xs lowercase tracking-widest text-ink/30">hammy</p>
       </footer>
     </main>
   );

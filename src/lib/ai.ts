@@ -61,6 +61,44 @@ const GeneratedLookbookSchema = z.object({
   ),
 });
 
+const ExtractedProductSchema = z.object({
+  name: z.string().describe("Clean product name without brand or marketing suffixes"),
+  brand: z.string().describe("The brand or retailer name; empty string if truly unknown"),
+  category: z.enum(CATEGORIES),
+  price_dollars: z
+    .number()
+    .describe("Price in US dollars; 0 if not determinable from the page"),
+  color_hex: z
+    .string()
+    .describe(
+      "Best guess at the product's dominant color as 6-digit hex, from color names in the text (e.g. 'sawdust' ≈ #c9b899). Use #808080 only if there is no color signal at all."
+    ),
+});
+
+export type ExtractedProduct = z.infer<typeof ExtractedProductSchema>;
+
+export async function extractProductFromPage(
+  url: string,
+  pageHead: string
+): Promise<ExtractedProduct> {
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    system:
+      "You extract structured product data from e-commerce page metadata for a stylist's app. Be precise; infer sensibly from titles, meta tags, and JSON-LD.",
+    messages: [
+      {
+        role: "user",
+        content: `Extract the product from this page.\n\nURL: ${url}\n\nPage <head> content:\n${pageHead}`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(ExtractedProductSchema) },
+  });
+
+  if (!response.parsed_output) throw new Error("Could not extract product data");
+  return response.parsed_output;
+}
+
 export type GeneratedItem = z.infer<typeof GeneratedItemSchema>;
 export type GeneratedWardrobe = z.infer<typeof GeneratedWardrobeSchema>;
 export type GeneratedLookbook = z.infer<typeof GeneratedLookbookSchema>;

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { addItem, deleteItem, generateItemsWithAi } from "./actions";
+import { addItem, deleteItem, generateItemsWithAi, importItemFromUrl } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
 import { COLOR_FAMILIES, inColorFamily, formatPrice } from "@/lib/color";
 import { CATEGORIES, type Item } from "@/lib/types";
@@ -25,7 +25,7 @@ export default async function ItemsPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-semibold text-ink">Item library</h1>
+      <h1 className="font-serif text-3xl font-medium tracking-tight text-ink">Item library</h1>
       <p className="mt-1 text-sm text-ink/60">
         Pieces you recommend to clients, indexed by color.
       </p>
@@ -33,6 +33,26 @@ export default async function ItemsPage({ searchParams }: Props) {
       {error && (
         <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
+
+      <form
+        action={importItemFromUrl}
+        className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-bone bg-white p-4"
+      >
+        <div className="min-w-72 flex-1">
+          <label htmlFor="import-url" className="mb-1 block text-xs font-medium uppercase tracking-[0.15em] text-taupe-dark">
+            Add from a product link
+          </label>
+          <input
+            id="import-url"
+            name="url"
+            type="url"
+            required
+            placeholder="Paste any product page URL — we'll pull the photo, name, brand, price & color"
+            className="w-full rounded-md border border-bone px-3 py-2 text-sm focus:border-taupe focus:outline-none"
+          />
+        </div>
+        <SubmitButton pendingLabel="Importing…">Import item</SubmitButton>
+      </form>
 
       <form
         action={generateItemsWithAi}
