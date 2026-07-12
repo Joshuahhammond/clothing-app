@@ -48,14 +48,14 @@ export async function processProductImage(
     let upload = Buffer.from(await blob.arrayBuffer());
 
     // Quality gate: low-contrast garments (cream on cream) get shredded by
-    // segmentation. If the cutout kept too little or nearly everything,
-    // fall back to the clean rectangular crop instead.
+    // segmentation — a near-empty cutout falls back to the rectangular crop.
+    // High coverage just means the subject fills the frame; keep it.
     try {
       const sharp = (await import("sharp")).default;
       const stats = await sharp(upload).ensureAlpha().stats();
       const alpha = stats.channels[3];
       const coverage = (alpha?.mean ?? 255) / 255;
-      if (coverage < 0.2 || coverage > 0.97) {
+      if (coverage < 0.2) {
         if (source instanceof Blob) {
           upload = Buffer.from(await source.arrayBuffer());
         } else {
