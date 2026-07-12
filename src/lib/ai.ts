@@ -42,7 +42,7 @@ const LookbookDesignSchema = z.object({
         pieces: z
           .array(PieceSchema)
           .describe(
-            "5-8 pieces forming this COMPLETE outfit: top(s), bottom (or dress), shoes, and 1-3 finishing accessories (belt, sunglasses, bag); outerwear when it belongs"
+            "8-11 pieces forming this COMPLETE, abundant outfit. MANDATORY per outfit: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, AND at least two finishing accessories from belt / sunglasses / earrings / necklace / bracelet. Outerwear when it belongs. Editorial collages feel generous — never sparse."
           ),
       })
     )
@@ -72,7 +72,7 @@ export async function designLookbook(
       messages: [
         {
           role: "user",
-          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision, then each outfit as a named look with a numbered piece list (5-8 pieces) covering the FULL outfit — top(s), bottom or dress, shoes, and 1-3 finishing accessories like a belt, sunglasses, or a bag; outerwear if it belongs. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
+          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision, then each outfit as a named look with a numbered piece list of 8-11 pieces. Every outfit MUST be head-to-toe AND fully finished: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, and at least two more finishing accessories (belt, sunglasses, earrings, necklace, bracelet); outerwear if it belongs. Editorial boards feel abundant — never sparse. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
         },
       ],
     });
@@ -93,7 +93,7 @@ export async function designLookbook(
         role: "user",
         content: prose
           ? `Structure this lookbook design into the schema, keeping every outfit and every piece:\n\n${prose}`
-          : `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient} Each outfit: top(s), bottom or dress, shoes, and 1-3 finishing accessories; outerwear if it belongs.`,
+          : `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient} Each outfit 8-11 pieces, head-to-toe and fully finished: top(s) or dress, bottom, shoes, a bag, and at least two more accessories (belt, sunglasses, jewelry); outerwear if it belongs.`,
       },
     ],
     output_config: { format: zodOutputFormat(LookbookDesignSchema) },
@@ -131,7 +131,7 @@ export async function matchPiecesToProducts(
     messages: [
       {
         role: "user",
-        content: `You designed this look:\n${specSummary}\n\nReal, in-stock candidates (each tagged with the piece it could fill):\n${candidateLines}\n\nFor each design piece, choose the single candidate that best honors the design — silhouette and color fidelity over price. Never choose two candidates that are near-duplicates. HARD RULE: the candidate must actually BE that kind of piece — a polo shirt can never fill a shoes slot. If no candidate genuinely is the designed piece, OMIT that piece entirely rather than substituting a different garment type.`,
+        content: `You designed this look:\n${specSummary}\n\nReal, in-stock candidates (each tagged with the piece it could fill):\n${candidateLines}\n\nFor each design piece, choose the single candidate that best honors the design. Never choose two candidates that are near-duplicates. HARD RULE: the candidate must actually BE that kind of piece — a polo shirt can never fill a shoes slot.\n\nTwo tiers of strictness:\n- GARMENTS (tops, bottoms, dresses, outerwear): silhouette and color fidelity matter — omit the piece if nothing genuinely matches the design.\n- ACCESSORIES & SHOES (shoes, bag, belt, sunglasses, jewelry): a finished board beats a perfect match — choose the CLOSEST available candidate of the right type even if the color or details differ from the design, and say in the note how to make it work. Only omit when no candidate of that type exists at all.`,
       },
     ],
     output_config: { format: zodOutputFormat(PieceMatchSchema) },

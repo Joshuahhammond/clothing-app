@@ -140,12 +140,14 @@ async function runLookbookGeneration({
 
     const pool: typeof all = [];
     const lines: string[] = [];
+    const poolByPiece = new Map<number, typeof all>();
     flatPieces.forEach((piece, pi) => {
-      let matchesForPiece = filterByKeywords(all, piece.keywords).slice(0, 10);
+      let matchesForPiece = filterByKeywords(all, piece.keywords).slice(0, 12);
       // Zero candidates → retry with just the strongest (first two) stems
       if (matchesForPiece.length === 0 && piece.keywords.length > 2) {
-        matchesForPiece = filterByKeywords(all, piece.keywords.slice(0, 2)).slice(0, 10);
+        matchesForPiece = filterByKeywords(all, piece.keywords.slice(0, 2)).slice(0, 12);
       }
+      poolByPiece.set(pi, matchesForPiece);
       console.log(
         `[lookbook ${lookbookId}] piece ${pi} (${piece.role}) kw=[${piece.keywords.join(",")}] → ${matchesForPiece.length} candidates`
       );
@@ -185,6 +187,27 @@ async function runLookbookGeneration({
         outfit: piece.outfit,
       });
     }
+    // Guaranteed fill: a designed piece the matcher dropped still gets its
+    // best keyword candidate — a finished board beats a perfect match.
+    const matchedPieceIdx = new Set(matches.map((m) => m.piece));
+    flatPieces.forEach((piece, pi) => {
+      if (matchedPieceIdx.has(pi)) return;
+      const candidates = poolByPiece.get(pi) ?? [];
+      const seen = seenPerOutfit.get(piece.outfit) ?? new Set<string>();
+      const fallback = candidates.find((c) => !seen.has(c.url));
+      if (!fallback) return;
+      seen.add(fallback.url);
+      seenPerOutfit.set(piece.outfit, seen);
+      chosen.push({
+        product: fallback,
+        category: piece.category,
+        color_hex: piece.color_hex,
+        note: "",
+        outfit: piece.outfit,
+      });
+      console.log(`[lookbook ${lookbookId}] piece ${pi} (${piece.role}) auto-filled: ${fallback.title}`);
+    });
+
     if (chosen.length === 0) throw new Error("Couldn't match the design to store inventory");
     chosen.sort((a, b) => a.outfit - b.outfit);
     console.log(
