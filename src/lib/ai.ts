@@ -14,7 +14,11 @@ const CELEB_STYLIST_SYSTEM =
   "calls before a press week. You design complete, intentional looks: every outfit is head-to-toe " +
   "(outerwear when it belongs, top, bottom, shoes) and finished with deliberate accessories — belt, " +
   "sunglasses, bag, jewelry. You think in silhouettes, proportions, and a tight color story. " +
-  "You know current runway and street-style trends and reference them.";
+  "You know current runway and street-style trends and reference them. " +
+  "Your signature discipline is COLOR: every lookbook lives inside ONE tight palette — at most " +
+  "three tonal families plus a single metal accent (gold OR silver, never both) — and every piece " +
+  "names its exact color from that palette. A saturated hue appears only when the brief demands it, " +
+  "and then as one deliberate accent, never a stray.";
 
 const PieceSchema = z.object({
   role: z
@@ -72,7 +76,7 @@ export async function designLookbook(
       messages: [
         {
           role: "user",
-          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision, then each outfit as a named look with a numbered piece list of 8-11 pieces. Every outfit MUST be head-to-toe AND fully finished: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, and at least two more finishing accessories (belt, sunglasses, earrings, necklace, bracelet); outerwear if it belongs. Editorial boards feel abundant — never sparse. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
+          content: `Design a client lookbook of ${outfitCount} distinct, complete outfits for this brief: "${brief}".${forClient}\n\nFirst, search the web briefly for what's trending right now in this aesthetic (street style, Pinterest-type editorial, runway) and let it inform the design. Then write the design: a short collection vision that OPENS BY NAMING THE PALETTE (e.g. "chocolate / cream / tan + gold"), then each outfit as a named look with a numbered piece list of 8-11 pieces. Every piece's color must come from the named palette. Every outfit MUST be head-to-toe AND fully finished: top(s) or a dress, a bottom (unless dress-led), shoes, a bag, and at least two more finishing accessories (belt, sunglasses, earrings, necklace, bracelet); outerwear if it belongs. Editorial boards feel abundant — never sparse. The outfits must be distinct from each other but cohesive as one collection. For each piece give silhouette, fabric, exact color, and the search words a buyer would use.`,
         },
       ],
     });
@@ -131,7 +135,9 @@ export async function matchPiecesToProducts(
     messages: [
       {
         role: "user",
-        content: `You designed this look:\n${specSummary}\n\nReal, in-stock candidates (each tagged with the piece it could fill):\n${candidateLines}\n\nFor each design piece, choose the single candidate that best honors the design. Never choose two candidates that are near-duplicates. HARD RULE: the candidate must actually BE that kind of piece — a polo shirt can never fill a shoes slot.\n\nTwo tiers of strictness:\n- GARMENTS (tops, bottoms, dresses, outerwear): silhouette and color fidelity matter — omit the piece if nothing genuinely matches the design.\n- ACCESSORIES & SHOES (shoes, bag, belt, sunglasses, jewelry): a finished board beats a perfect match — choose the CLOSEST available candidate of the right type even if the color or details differ from the design, and say in the note how to make it work. Only omit when no candidate of that type exists at all.`,
+        content: `You designed this look:\n${specSummary}\n\nReal, in-stock candidates (each tagged with the piece it could fill):\n${candidateLines}\n\nFor each design piece, choose the single candidate that best honors the design. Never choose two candidates that are near-duplicates. HARD RULE: the candidate must actually BE that kind of piece — a polo shirt can never fill a shoes slot.\n\nTwo tiers of strictness:\n- GARMENTS (tops, bottoms, dresses, outerwear): silhouette and color fidelity matter — omit the piece if nothing genuinely matches the design.\n- ACCESSORIES & SHOES (shoes, bag, belt, sunglasses, jewelry): a finished board beats a perfect match — choose the CLOSEST available candidate of the right type even if the details differ from the design, and say in the note how to make it work. Only omit when no candidate of that type exists at all.
+
+PALETTE DISCIPLINE (overrides everything except the type rule): the collection's palette is sacred. Judge each candidate's color from its title/type/tags. A GARMENT whose evident color sits outside the designed piece's color family breaks the board — omit instead. An ACCESSORY should sit inside the palette or stay neutral (black, cream, tan, leather, tortoise, the palette's metal); NEVER introduce a saturated color the palette doesn't contain.`,
       },
     ],
     output_config: { format: zodOutputFormat(PieceMatchSchema) },
