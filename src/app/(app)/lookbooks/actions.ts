@@ -298,6 +298,17 @@ async function runLookbookGeneration({
         c.product = alt;
         return true;
       }
+      // Structural guard: never drop an outfit's only bottoms/tops — a
+      // palette wobble beats a legless board
+      const structural = ["bottoms", "tops", "dresses"].includes(c.category) &&
+        !chosen.some(
+          (o, oi) => oi !== ci && o.outfit === c.outfit && o.category === c.category &&
+            verdicts.get(oi) !== false
+        );
+      if (structural) {
+        console.log(`[lookbook ${lookbookId}] palette kept (structural): ${c.product.title}`);
+        return true;
+      }
       console.log(`[lookbook ${lookbookId}] palette drop: ${c.product.title}`);
       return false;
     });
