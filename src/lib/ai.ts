@@ -106,7 +106,7 @@ const DiscoveryPlanSchema = z.object({
   keywords: z
     .array(z.string())
     .describe(
-      "6-10 lowercase search words/short phrases likely to appear in matching product titles, types, or tags (e.g. 'linen', 'wide leg', 'blazer', 'ivory')"
+      "8-12 lowercase search terms likely to appear in product titles, types, or tags. Prefer single-word stems ('linen', 'trouser', 'blazer', 'stripe', 'vest', 'scarf', 'cream', 'loafer'); use two words only when both must co-occur ('wide leg')"
     ),
 });
 

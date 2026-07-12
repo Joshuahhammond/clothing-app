@@ -49,6 +49,27 @@ export const SOURCES: Source[] = [
   { id: "outdoorvoices", name: "Outdoor Voices", domain: "outdoorvoices.com", vibe: "recreational athleisure, playful color-block, doing-things energy; men + women" },
   { id: "girlfriend", name: "Girlfriend Collective", domain: "girlfriend.com", vibe: "sustainable compressive activewear in rich muted colors, size-inclusive; women" },
   { id: "beyondyoga", name: "Beyond Yoga", domain: "beyondyoga.com", vibe: "buttery spacedye yoga and lounge wear; women; mid-premium" },
+  // ——— European / old money / quiet luxury ———
+  { id: "toteme", name: "Toteme", domain: "toteme-studio.com", vibe: "Scandinavian quiet luxury, impeccable tailoring, the old-money uniform; luxury (EUR prices)" },
+  { id: "frankieshop", name: "The Frankie Shop", domain: "thefrankieshop.com", vibe: "oversized blazers, sharp Parisian-NY minimalism; contemporary" },
+  { id: "rouje", name: "Rouje", domain: "rouje.com", vibe: "Parisian it-girl, wrap dresses and silk blouses, Jeanne Damas French chic (EUR prices)" },
+  { id: "musier", name: "Musier Paris", domain: "musier-paris.com", vibe: "playful Parisian, knit sets and scarf tops (EUR prices)" },
+  { id: "soeur", name: "Soeur", domain: "soeur.fr", vibe: "understated French bourgeois elegance, refined basics; premium (EUR prices)" },
+  { id: "balzac", name: "Balzac Paris", domain: "balzac-paris.fr", vibe: "responsible Parisian wardrobe, feminine and timeless (EUR prices)" },
+  { id: "stagni", name: "St. Agni", domain: "st-agni.com", vibe: "minimalist old-money resort, linen tailoring and leather; premium" },
+  { id: "matteau", name: "Matteau", domain: "matteau-store.com", vibe: "refined Riviera resortwear, elegant swim and linen; premium" },
+  { id: "posse", name: "Posse", domain: "posse.com", vibe: "European-summer linen sets, effortless vacation tailoring; contemporary" },
+  { id: "dissh", name: "DISSH", domain: "dissh.com", vibe: "clean linen and neutral resort tailoring, Euro-summer staple; mid-range" },
+  { id: "favoritedaughter", name: "Favorite Daughter", domain: "favoritedaughter.com", vibe: "polished old-money blazers and trousers with a wink; contemporary" },
+  { id: "aligne", name: "ALIGNE", domain: "aligne.co", vibe: "elevated UK tailoring, structured blazers and dresses; mid-range" },
+  { id: "omnes", name: "OMNES", domain: "omnes.com", vibe: "sustainable UK occasion and workwear, quietly chic; affordable-mid" },
+  { id: "nobodyschild", name: "Nobody's Child", domain: "nobodyschild.com", vibe: "feminine UK high-street dresses, ditsy prints; affordable" },
+  { id: "damsonmadder", name: "Damson Madder", domain: "damsonmadder.com", vibe: "playful London vintage-inspired, ruffles and checks; mid-range" },
+  { id: "lisasaysgah", name: "Lisa Says Gah", domain: "lisasaysgah.com", vibe: "eclectic European-flea-market color and print; contemporary" },
+  { id: "ciaolucia", name: "Ciao Lucia", domain: "ciaolucia.com", vibe: "Italian-holiday knit tops and slinky resort dresses; contemporary" },
+  { id: "astr", name: "ASTR the Label", domain: "astrthelabel.com", vibe: "feminine event and vacation dresses, polished date-night; mid-range" },
+  { id: "sir", name: "SIR.", domain: "sirthelabel.com", vibe: "sculptural Australian minimalism, silk and linen Euro-summer; premium" },
+  { id: "faithfull", name: "Faithfull the Brand", domain: "faithfullthebrand.com", vibe: "Mediterranean-holiday linen dresses and sets; contemporary" },
 ];
 
 export const sourceById = (id: string) => SOURCES.find((s) => s.id === id);

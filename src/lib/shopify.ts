@@ -58,15 +58,23 @@ export async function fetchStoreProducts(
   }
 }
 
-/** Cheap local keyword pass to shrink the candidate pool before AI ranking */
+const normalize = (s: string) => s.toLowerCase().replace(/[-_/]+/g, " ");
+
+/**
+ * Cheap local keyword pass to shrink the candidate pool before AI ranking.
+ * A multi-word keyword matches when ALL its words appear somewhere in the
+ * product text ("linen trouser" matches "Wide-Leg Trouser — Cream Linen").
+ */
 export function filterByKeywords(
   products: SourceProduct[],
   keywords: string[]
 ): SourceProduct[] {
-  const needles = keywords.map((k) => k.toLowerCase()).filter(Boolean);
+  const needles = keywords
+    .map((k) => normalize(k).split(/\s+/).filter(Boolean))
+    .filter((words) => words.length > 0);
   if (needles.length === 0) return products;
   return products.filter((p) => {
-    const haystack = `${p.title} ${p.productType} ${p.tags.join(" ")}`.toLowerCase();
-    return needles.some((n) => haystack.includes(n));
+    const haystack = normalize(`${p.title} ${p.productType} ${p.tags.join(" ")}`);
+    return needles.some((words) => words.every((w) => haystack.includes(w)));
   });
 }
