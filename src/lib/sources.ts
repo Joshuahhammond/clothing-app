@@ -106,6 +106,14 @@ export const SOURCES: Source[] = [
   { id: "cozyearth", name: "Cozy Earth", domain: "cozyearth.com", vibe: "bamboo-soft pajamas and loungewear, temperature-regulating; premium" },
   { id: "pjsalvage", name: "P.J. Salvage", domain: "pjsalvage.com", vibe: "cozy thermal and flannel pajama sets, playful prints; mid-range" },
   { id: "papinelle", name: "Papinelle", domain: "papinelle.com", vibe: "feminine Australian sleepwear, soft florals and washable silk; mid-premium" },
+  // ——— lingerie / intimates ———
+  { id: "honeybirdette", name: "Honey Birdette", domain: "honeybirdette.com", vibe: "premium luxe lingerie, embroidered sets, corsetry and harness details" },
+  { id: "fleurdumal", name: "Fleur du Mal", domain: "fleurdumal.com", vibe: "NYC luxury lingerie and silk slips, refined and editorial; premium" },
+  { id: "bluebella", name: "Bluebella", domain: "bluebella.com", vibe: "fashion-forward UK lingerie, strappy and sheer; mid-range" },
+  { id: "thistleandspire", name: "Thistle & Spire", domain: "thistleandspire.com", vibe: "Brooklyn embroidered lingerie, botanical lace bodysuits; mid-range" },
+  { id: "gooseberry", name: "Gooseberry Intimates", domain: "gooseberryintimates.com", vibe: "delicate lace bralette sets, soft romantic intimates; mid-range" },
+  { id: "fredericks", name: "Frederick's of Hollywood", domain: "fredericks.com", vibe: "classic glam lingerie, corsets and slips; affordable-mid" },
+  { id: "journelle", name: "Journelle", domain: "journelle.com", vibe: "curated luxury lingerie retailer, multi-brand European labels; premium" },
 ];
 
 export const sourceById = (id: string) => SOURCES.find((s) => s.id === id);
