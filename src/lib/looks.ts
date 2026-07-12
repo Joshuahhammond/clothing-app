@@ -98,7 +98,7 @@ const SHOE_SLOTS: Record<number, Slot[]> = {
 const ACC_SLOTS: Slot[] = [
   { left: 39, top: 45, width: 21, height: 17, z: 6, rotate: 0 },
   { left: 71, top: 1, width: 17, height: 11, z: 7, rotate: -4 },
-  { left: 5, top: 66, width: 21, height: 16, z: 6, rotate: -5 },
+  { left: 38, top: 64, width: 22, height: 15, z: 6, rotate: -5 },
 ];
 
 // With no left-flank trouser the left-middle goes dead — pull accessories in

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
-import { planDiscovery, curateLookbook, pickBestImage } from "@/lib/ai";
+import { planDiscovery, curateLookbook, pickBestImage, locateGarment } from "@/lib/ai";
 import { processProductImage } from "@/lib/images";
 import { SOURCES, sourceById } from "@/lib/sources";
 import { fetchStoreProducts, filterByKeywords } from "@/lib/shopify";
@@ -64,16 +64,16 @@ export async function generateLookbookWithAi(formData: FormData) {
     .filter((pick) => candidates[pick.index])
     .slice(0, count);
 
-  // Photos: vision picks the flat shot; flats become transparent cutouts
+  // Photos: flats cut out directly; on-model shots get a headless garment
+  // crop first so every piece lands on the collage
   const prepared = await Promise.all(
     chosen.map(async (pick) => {
       const product = candidates![pick.index];
       const pool = product.images.length > 0 ? product.images : [product.image];
       const best = await pickBestImage(pool);
       const chosenUrl = pool[best.index] ?? product.image;
-      const imageUrl = best.flat
-        ? await processProductImage(chosenUrl, user.id, supabase)
-        : chosenUrl;
+      const crop = best.flat ? null : await locateGarment(chosenUrl, product.title);
+      const imageUrl = await processProductImage(chosenUrl, user.id, supabase, crop);
       return { pick, product, imageUrl };
     })
   );

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hexToHsl } from "@/lib/color";
-import { pickBestImage } from "@/lib/ai";
+import { pickBestImage, locateGarment } from "@/lib/ai";
 import { processProductImage } from "@/lib/images";
 
 export async function addDiscoveredItem(formData: FormData) {
@@ -26,11 +26,13 @@ export async function addDiscoveredItem(formData: FormData) {
     .filter((u) => u.startsWith("http"));
   let imageUrl = String(formData.get("image_url") ?? "");
   const pool = candidates.length > 0 ? candidates : imageUrl ? [imageUrl] : [];
+  const name = String(formData.get("name") ?? "");
   if (pool.length > 0) {
     const best = await pickBestImage(pool);
-    imageUrl = best.flat
-      ? await processProductImage(pool[best.index], user.id, supabase)
-      : pool[best.index];
+    const chosen = pool[best.index];
+    // Flats cut out directly; on-model shots get a headless garment crop first
+    const crop = best.flat ? null : await locateGarment(chosen, name);
+    imageUrl = await processProductImage(chosen, user.id, supabase, crop);
   }
 
   await supabase.from("items").insert({

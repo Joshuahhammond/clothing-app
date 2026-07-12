@@ -196,6 +196,49 @@ export async function pickBestImage(imageUrls: string[]): Promise<BestImage> {
   }
 }
 
+const GarmentBoxSchema = z.object({
+  left: z.number().describe("Left edge of the box, percent of image width (0-100)"),
+  top: z.number().describe("Top edge, percent of image height (0-100)"),
+  width: z.number().describe("Box width, percent of image width"),
+  height: z.number().describe("Box height, percent of image height"),
+});
+
+export type GarmentBox = z.infer<typeof GarmentBoxSchema>;
+
+/**
+ * For on-model photos: locate just the garment so we can crop a clean
+ * headless torso shot (the Hue & Stripe treatment for worn pieces).
+ */
+export async function locateGarment(
+  imageUrl: string,
+  productName: string
+): Promise<GarmentBox | null> {
+  try {
+    const response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image" as const, source: { type: "url" as const, url: imageUrl } },
+            {
+              type: "text" as const,
+              text: `Find the "${productName}" in this photo. Return a tight bounding box around ONLY that product as percentages of the image (0-100). Exclude the model's head/face entirely, and exclude body parts that aren't covered by the product. A little margin (2-3%) around the product is good.`,
+            },
+          ],
+        },
+      ],
+      output_config: { format: zodOutputFormat(GarmentBoxSchema) },
+    });
+    const box = response.parsed_output;
+    if (!box || box.width < 10 || box.height < 10) return null;
+    return box;
+  } catch {
+    return null;
+  }
+}
+
 const DiscoveryPlanSchema = z.object({
   store_ids: z
     .array(z.string())
