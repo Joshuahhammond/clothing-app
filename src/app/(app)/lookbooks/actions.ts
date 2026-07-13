@@ -435,7 +435,17 @@ async function runLookbookGeneration({
           const hero = heroPieceByOutfit.get(pick.outfit) === pick.pieceIdx;
           const best = await pickBestImage(imgs, hero);
           const chosenUrl = imgs[best.index] ?? product.image;
-          const crop = best.flat ? null : await locateGarment(chosenUrl, product.title);
+          let crop = best.flat ? null : await locateGarment(chosenUrl, product.title);
+          if (crop) {
+            // Deterministic face guards — the vision box sometimes covers
+            // the whole body. A near-full-frame box is no crop at all;
+            // a full-length bottom's box must start at the waist.
+            if (crop.top < 10 && crop.height > 80) crop = null;
+            else if (isFullLengthBottom(pick.pieceIdx) && crop.top < 25) {
+              const bottomEdge = crop.top + crop.height;
+              crop = { ...crop, top: 34, height: Math.max(20, bottomEdge - 34) };
+            }
+          }
           if (!best.flat && !crop) {
             // Model shot with no clean garment box → bench to the strip.
             // A person silhouette on the canvas is worse than a gap.

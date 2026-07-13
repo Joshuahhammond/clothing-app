@@ -830,6 +830,14 @@ export function autoscale(
       slot.height *= s;
     }
   }
+  // Recenter vertically: compaction pulls items upward, which crowds the
+  // top and vacates the bottom — shift the whole cluster back to center
+  {
+    const minT2 = Math.min(...placed.map(({ slot }) => slot.top));
+    const maxB2 = Math.max(...placed.map(({ slot }) => slot.top + slot.height));
+    const dy = 50 - (minT2 + maxB2) / 2;
+    if (Math.abs(dy) > 2) for (const { slot } of placed) slot.top += dy;
+  }
   // Margin frame: reference boards keep a clean empty border — nothing
   // ever touches or clips the canvas edge (symmetric 3% all around)
   for (const { slot } of placed) {
